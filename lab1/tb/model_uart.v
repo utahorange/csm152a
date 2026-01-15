@@ -15,6 +15,9 @@ module model_uart(/*AUTOARG*/
    parameter name    = "UART0";
    
    reg [7:0] rxData;
+   reg [31:0] inputData;
+   // have a bigger buffer to store any arbitrary amt of rx data, clear buffer by printing out when receive \r
+   // 4 bytes, print out all 4 bytes when you see carriage return (2 bytes)
    event     evBit;
    event     evByte;
    event     evTxBit;
@@ -33,11 +36,25 @@ module model_uart(/*AUTOARG*/
         repeat (8)
           begin
              #bittime ->evBit;
-             //rxData[7:0] = {rxData[6:0],RX};
              rxData[7:0] = {RX,rxData[7:1]};
           end
         ->evByte;
-        $display ("%d %s Received byte %02x (%s)", $stime, name, rxData, rxData);
+//        $display("%08x", rxData);
+         if (rxData == 8'h0A)
+            begin
+               $display("%d %s Received word %08x (%c%c%c%c)", $stime, name,
+                  inputData,
+                  inputData[31:24],
+                  inputData[23:16],
+                  inputData[15:8],
+                  inputData[7:0]);
+               inputData[31:0] = 32'h0;
+            end
+         else
+            begin
+               inputData = {inputData[23:0], rxData};
+            end
+         // $display ("%d %s Received bytes %02x (%s)", $stime, name, rxData, rxData);
      end
 
    task tskRxData;
@@ -65,3 +82,10 @@ module model_uart(/*AUTOARG*/
    endtask // tskTxData
    
 endmodule // model_uart
+
+
+
+
+
+
+

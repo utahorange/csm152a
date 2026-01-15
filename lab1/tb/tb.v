@@ -16,6 +16,8 @@ module tb;
    wire [7:0]           led;                    // From uut_ of basys3.v
    // End of automatics
 
+   reg [7:0] instructions [1024:0]; // 1024 array locations, each of 8 bits for one instruction; the first num is not an instr
+   integer num_instr;
    initial
      begin
         //$shm_open  ("dump", , ,1);
@@ -26,16 +28,18 @@ module tb;
         btnS = 0;
         #1000 btnR = 0;
         #1500000;
-        
-        tskRunPUSH(0,4);
-        tskRunPUSH(0,0);
-        tskRunPUSH(1,3);
-        tskRunMULT(0,1,2);
-        tskRunADD(2,0,3);
-        tskRunSEND(0);
-        tskRunSEND(1);
-        tskRunSEND(2);
-        tskRunSEND(3);
+
+         $display("Loading instructions");
+         $readmemb("seq.code", instructions);
+         num_instr = instructions[0];
+
+         // walk thru instructions
+         for(i=1;i<num_instr;i=i+1)
+         begin
+            $display("instructions[%0d] is %08b\n",i,instructions[i]);
+         tskRunInst(instructions[i]);
+
+         end
         
         #1000;        
         $finish;

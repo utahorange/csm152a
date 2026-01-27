@@ -52,6 +52,8 @@ module converter_twos_to_sign_mag(D_input, D_result, S);
     input [11:0] D_input;
     output [11:0] D_result;
     output S;
+    assign S = D_input[11];
+    assign D_result = (S == 1'b1) ? (~D_input + 1'b1) : D_input;
 endmodule
 
 
@@ -65,7 +67,8 @@ endmodule
 module count_leading_zeroes (D, exponent);
     input [11:0] D;
     output [2:0] exponent;
-   
+   // walk D, to see until 0->1 transition
+   // return exponent which is 8 - the number of leading zeroes
 endmodule
 
 
@@ -79,9 +82,3 @@ module rounding (E, F, fifth_bit, final_E, final_F
     output [3:0] final_F;
    
 endmodule
-
-
-
-
-
-

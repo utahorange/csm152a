@@ -39,10 +39,19 @@ module FPCVT(D, S, E, F
     wire [2:0] intermed_exp;
     wire [3:0] intermed_sig;
     wire intermed_fifth_bit;
-    count_leading_zeroes counter (.D(intermed_result), .exponent(intermed_exp));
-    extract_leading_bits(.D(intermed_result), .significand(intermed_sig), .fifth_bit(intermed_fifth_bit));
-    rounding rounder(.E(intermed_exp), .F(intermed_sig), .fifth_bit(intermed_fifth_bit), .final_E(E), .final_F(F)); 
-
+    
+    
+        count_leading_zeroes counter (.D(intermed_result), .exponent(intermed_exp));
+        
+        extract_leading_bits elb(.D(intermed_result), .significand(intermed_sig), .fifth_bit(intermed_fifth_bit));
+        
+        rounding rounder(.E(intermed_exp), .F(intermed_sig), .fifth_bit(intermed_fifth_bit), .final_E(E), .final_F(F)); 
+        
+        
+    always @(*) begin
+        $display("D_result: %12b | Sign: %1b, Final_E: %3b, Final_F: %4b", intermed_result, sign, E, F); 
+    end
+    
 endmodule
 
 module converter_twos_to_sign_mag(D_input, D_result, S);
@@ -62,33 +71,37 @@ module extract_leading_bits (D, significand, fifth_bit);
     
     // ALWAYS takes input D with a leading 0
     integer i;
-    always @* begin
-        for (i = 10; i >= 0; i = i - 1) begin
-            if (i <= 3) begin
-                significand <= D[3:0];
-                // assign the fifth bit to 0 in the case that we use the last 4 bits
-                fifth_bit <= 0;
-                break;
-            end
-            
-            if (D[i]) begin
-                significand <= D[i-:4];
-                fifth_bit <= D[i-4];
-                break;
+    integer found_trans = 0;
+        always @* begin
+            for (i = 10; i >= 0; i = i - 1) begin
+                if (i <= 3 && !found_trans) begin
+                    significand <= D[3:0];
+                    // assign the fifth bit to 0 in the case that we use the last 4 bits
+                    fifth_bit <= 0;
+                    found_trans = 1;
+                    
+                end
+                
+                if (D[i] && !found_trans) begin
+                    significand <= D[i-:4];
+                    fifth_bit <= D[i-4];
+                    found_trans = 1;
+                end
             end
         end
-    end
 endmodule
 
 module count_leading_zeroes (D, exponent);
     input [11:0] D;
     output reg [2:0] exponent;
     integer i;
+    integer flag = 0;
+    
     always @* begin
         for (i = 11; i >= 0; i = i - 1) begin
-            if (D[i]) begin
+            if (D[i] && !flag) begin
                 exponent <= 11 - i;
-                break;
+                flag = 1;
             end
         end
     end

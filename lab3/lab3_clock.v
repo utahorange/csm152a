@@ -106,8 +106,9 @@ module lab3_clock (input clk_1HZ, input clk_2HZ, input clk_50MHZ, output reg [7:
                 placeholder_digit <= minutes2_counter;
             end
         endcase
-        
+         
         // Display the updated seven_segN digits on the basys3 board.
+        // chanegto nex tande
         // Set all the board's digits to 0
     end
     
@@ -115,16 +116,16 @@ module lab3_clock (input clk_1HZ, input clk_2HZ, input clk_50MHZ, output reg [7:
     begin
         case(placeholder_digit)
         4'b0000: seg <= 7'b0000001; // "0"     
-        4'b0001: seg <= 7'b1001111; // "1" 
-        4'b0010: seg <= 7'b0010010; // "2" 
-        4'b0011: seg <= 7'b0000110; // "3" 
-        4'b0100: seg <= 7'b1001100; // "4" 
-        4'b0101: seg <= 7'b0100100; // "5" 
-        4'b0110: seg <= 7'b0100000; // "6" 
-        4'b0111: seg <= 7'b0001111; // "7" 
+        4'b0001: seg <= 7'b1111001; // "1" 
+        4'b0010: seg <= 7'b0100100; // "2" 
+        4'b0011: seg <= 7'b0110000; // "3" 
+        4'b0100: seg <= 7'b0011001; // "4" 
+        4'b0101: seg <= 7'b0010010; // "5" 
+        4'b0110: seg <= 7'b0000010; // "6" 
+        4'b0111: seg <= 7'b1111000; // "7" 
         4'b1000: seg <= 7'b0000000; // "8"     
-        4'b1001: seg <= 7'b0000100; // "9" 
-        default: seg <= 7'b0000001; // "0"
+        4'b1001: seg <= 7'b0010000; // "9"
+        default: seg <= 7'b0000001; // default 
         endcase
     end
     

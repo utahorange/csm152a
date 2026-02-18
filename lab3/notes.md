@@ -62,3 +62,5 @@ while true
 		set seg value to the digit -> look at minute1, minute2....
 		turn off all anodes (or just the prev anode that was on)
 		turn on just the anode we want
+
+:/opt/Xilinx/2025.2/data/xicom/cable_drivers/lin64/install_script/install_drivers$

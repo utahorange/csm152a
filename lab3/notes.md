@@ -64,3 +64,14 @@ while true
 		turn on just the anode we want
 
 :/opt/Xilinx/2025.2/data/xicom/cable_drivers/lin64/install_script/install_drivers$
+
+
+
+
+so far today, trying to figure out what is going on with reset button
+
+it just stays stuck at 0, i have not finished changing my code yet, i need to put the updat
+code for reset into the 1 Hz clock section like seen in the fpga website but this seems
+complicated for no reason
+
+hmmmm idk

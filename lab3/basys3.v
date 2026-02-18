@@ -20,8 +20,8 @@ module basys3 (/*AUTOARG*/
                               .clk_1HZ(clock_1HZ), 
                               .clk_2HZ(clock_2HZ), 
                               .clk_50MHZ(clock_50MHZ),
-                              .btnReset(btnR),
-                              .btnPause(btnS),
+                              .btnReset(btnR), // T1 Right
+                              .btnPause(btnS), // U18 center
                               .swAdjust(sw[0]),
                               .swSelect(sw[1]),
                               .seg(seg), 

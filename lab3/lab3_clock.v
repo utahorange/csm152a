@@ -23,7 +23,7 @@ module clock_generator(
     input clk, 
     output reg clk_1HZ, 
     output reg clk_2HZ, 
-    reg clk_50MHZ);
+    output reg clk_50MHZ);
 
     parameter CLOCK_DIV_1_HZ = 100_000_000;
     parameter CLOCK_DIV_2_HZ = 50_000_000;
@@ -72,19 +72,40 @@ module lab3_clock (input clk, input clk_1HZ, input clk_2HZ, input clk_50MHZ,
     reg pause_state = 0; // 1 for in pause_state
     reg btnPause_sync0, btnPause_sync1;
     reg btnPause_prev = 0;
-    
+
+    reg reset_pulse = 0;
+    reg btnReset_sync0, btnReset_sync1;
+    reg btnReset_prev = 0;
+
     always @(posedge clk) begin
         // do this sync business to align button input with clock of FPGA
+
+        btnReset_sync0 <= btnReset;
+        btnReset_sync1 <= btnReset_sync0;
+        btnReset_prev<= btnReset_sync1;
+
         btnPause_sync0 <= btnPause;
         btnPause_sync1 <= btnPause_sync0;
-
         btnPause_prev <= btnPause_sync1;
+
+        reset_pulse <= btnReset_sync1 & ~btnReset_prev;
+
         // rising edge of button: make level-triggered into edge-triggered because our scan is so fast
-        if (btnPause_sync1 && !btnPause_prev)
-            pause_state <= ~pause_state; 
+        if (btnPause_sync1 & !btnPause_prev)
+            pause_state <= ~pause_state;
+
     end
     
     always @(posedge clk_1HZ) begin  
+
+        if (reset_pulse) begin// TODO: so this is resetting on the next clock cycle, is this okay? or do we want reset anytime
+            seconds1_counter <= 0;
+            seconds2_counter <= 0;
+            minutes1_counter <= 0;
+            minutes2_counter <= 0;
+            pause_state <= 0;
+        end
+
         if (!pause_state && seconds1_counter == 9) begin
             seconds2_counter <= seconds2_counter + 1;
             seconds1_counter <= 0;

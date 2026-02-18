@@ -19,10 +19,15 @@
 // 
 //////////////////////////////////////////////////////////////////////////////////
 
-module clock_generator(input clk, output reg clk_1HZ, output reg clk_2HZ, reg clk_50MHZ);
+module clock_generator(
+    input clk, 
+    output reg clk_1HZ, 
+    output reg clk_2HZ, 
+    reg clk_50MHZ);
+
     parameter CLOCK_DIV_1_HZ = 100_000_000;
     parameter CLOCK_DIV_2_HZ = 50_000_000;
-    parameter CLOCK_DIV_50_MHZ = 2;
+    parameter CLOCK_DIV_50_MHZ = 50_000;
     reg [26:0] counter_to_1HZ = 26'b0; // per clock tick
     reg [26:0] counter_to_2HZ = 26'b0; // per clock tick
     reg [26:0] counter_to_50MHZ = 26'b0; // per clock tick
@@ -60,35 +65,36 @@ module lab3_clock (input clk_1HZ, input clk_2HZ, input clk_50MHZ, output reg [7:
     reg [3:0] minutes2_counter = 4'b0;
     
     reg [3:0] placeholder_digit = 4'b0000;
-    reg [3:0] refresh_counter = 0;
+    reg [1:0] digit_to_display = 0;
     
-    always @(posedge clk_1HZ) begin // this is very fast
-        // refresh_counter <= refresh_counter + 1;
-        
-        seconds1_counter <= seconds1_counter + 1;
-        if (seconds1_counter == 10) begin
+    always @(posedge clk_1HZ) begin  
+        if (seconds1_counter == 9) begin
             seconds2_counter <= seconds2_counter + 1;
             seconds1_counter <= 0;
+        end else begin
+        seconds1_counter <= seconds1_counter + 1;
         end
-        
-        if (seconds2_counter == 6) begin
+
+        if (seconds2_counter == 5 && seconds1_counter == 9) begin
             minutes1_counter <= minutes1_counter + 1;
             seconds2_counter <= 0;
         end
         
-        if (minutes1_counter == 10) begin
+        if (minutes1_counter == 9 && seconds2_counter == 5 && seconds1_counter == 9) begin
             minutes2_counter <= minutes2_counter + 1;
             minutes1_counter <= 0;
         end
         
-        if (minutes2_counter == 10) begin
+        if (minutes2_counter == 9 && minutes1_counter == 9) begin
             minutes2_counter <= 0;
         end
         
     end
     
     always @(posedge clk_50MHZ) begin
-        case(refresh_counter[3:2])
+        digit_to_display <= digit_to_display + 1;
+        
+        case(digit_to_display)
             2'b00: begin
                 an  <= 4'b1110; // Digit 0 ON (Active Low for Basys3)
                 placeholder_digit <= seconds1_counter;
@@ -106,16 +112,12 @@ module lab3_clock (input clk_1HZ, input clk_2HZ, input clk_50MHZ, output reg [7:
                 placeholder_digit <= minutes2_counter;
             end
         endcase
-         
-        // Display the updated seven_segN digits on the basys3 board.
-        // chanegto nex tande
-        // Set all the board's digits to 0
     end
     
     always @(*)
     begin
         case(placeholder_digit)
-        4'b0000: seg <= 7'b0000001; // "0"     
+        4'b0000: seg <= 7'b1000000; // "0"     
         4'b0001: seg <= 7'b1111001; // "1" 
         4'b0010: seg <= 7'b0100100; // "2" 
         4'b0011: seg <= 7'b0110000; // "3" 
@@ -130,6 +132,4 @@ module lab3_clock (input clk_1HZ, input clk_2HZ, input clk_50MHZ, output reg [7:
     end
     
 endmodule
-
-
 

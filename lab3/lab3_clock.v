@@ -19,37 +19,53 @@
 // 
 //////////////////////////////////////////////////////////////////////////////////
 
-module lab3_clock #(parameter ONE_SECOND = 100_000_000) (input clk, output reg [7:0] seg, output reg [3:0] an);
+module clock_generator(input clk, output reg clk_1HZ, output reg clk_2HZ, reg clk_50MHZ);
+    parameter CLOCK_DIV_1_HZ = 100_000_000;
+    parameter CLOCK_DIV_2_HZ = 50_000_000;
+    parameter CLOCK_DIV_50_MHZ = 2;
+    reg [26:0] counter_to_1HZ = 26'b0; // per clock tick
+    reg [26:0] counter_to_2HZ = 26'b0; // per clock tick
+    reg [26:0] counter_to_50MHZ = 26'b0; // per clock tick
+
+    always @(posedge clk) begin
+        if (counter_to_1HZ == CLOCK_DIV_1_HZ - 1) begin // global counter reset 
+            clk_1HZ <= ~clk_1HZ;
+            counter_to_1HZ <= 0;
+        end else
+        begin
+            counter_to_1HZ <= counter_to_1HZ + 1;
+        end
+        if (counter_to_2HZ == CLOCK_DIV_2_HZ - 1) begin // global counter reset 
+            clk_2HZ <= ~clk_2HZ;
+            counter_to_2HZ <= 0;
+        end else
+        begin
+            counter_to_2HZ <= counter_to_2HZ + 1;
+        end
+        if (counter_to_50MHZ == CLOCK_DIV_50_MHZ - 1) begin // global counter reset 
+            clk_50MHZ <= ~clk_50MHZ;
+            counter_to_50MHZ <= 0;
+        end else
+        begin
+            counter_to_50MHZ <= counter_to_50MHZ + 1;
+        end
+    end
+endmodule
+
+module lab3_clock (input clk_1HZ, input clk_2HZ, input clk_50MHZ, output reg [7:0] seg, output reg [3:0] an);
     
-    reg global_counter = 0; // per clock tick
-    reg seconds1_counter = 0; // per 100,000 clock ticks
-    reg seconds2_counter = 0;
-    reg minutes1_counter = 0;
-    reg minutes2_counter = 0;
+    reg [3:0] seconds1_counter = 4'b0;
+    reg [3:0] seconds2_counter = 4'b0;
+    reg [3:0] minutes1_counter = 4'b0;
+    reg [3:0] minutes2_counter = 4'b0;
     
-    // for storing the seven-segment versions
-    // wire seven_seg0;
-    // wire seven_seg1;
-    // wire seven_seg2;
-    // wire seven_seg3;
     reg [3:0] placeholder_digit = 4'b0000;
-            
-    // sevenSeg_from_num converter (.num(seconds1_counter), .sevenSegBinary(seven_seg0));
-    // sevenSeg_from_num converter1 (.num(seconds2_counter), .sevenSegBinary(seven_seg1));
-    // sevenSeg_from_num converter2 (.num(minutes1_counter), .sevenSegBinary(seven_seg2));
-    // sevenSeg_from_num converter3 (.num(minutes2_counter), .sevenSegBinary(seven_seg3));
-    
     reg [3:0] refresh_counter = 0;
     
-    always @(posedge clk) begin
-        refresh_counter <= refresh_counter + 1;
+    always @(posedge clk_1HZ) begin // this is very fast
+        // refresh_counter <= refresh_counter + 1;
         
-        // changed 100000000 to "ONE_SECOND - 1"
-        if (global_counter == ONE_SECOND - 1) begin
-            seconds1_counter <= seconds1_counter + 1;
-            global_counter <= 0;
-        end
-        
+        seconds1_counter <= seconds1_counter + 1;
         if (seconds1_counter == 10) begin
             seconds2_counter <= seconds2_counter + 1;
             seconds1_counter <= 0;
@@ -73,7 +89,7 @@ module lab3_clock #(parameter ONE_SECOND = 100_000_000) (input clk, output reg [
             // Set all the board's digits to 0
     end
     
-    always @(*) begin
+    always @(posedge clk_50MHZ) begin
         case(refresh_counter[3:2])
             2'b00: begin
                 an  <= 4'b1110; // Digit 0 ON (Active Low for Basys3)
@@ -101,17 +117,17 @@ module lab3_clock #(parameter ONE_SECOND = 100_000_000) (input clk, output reg [
     always @(*)
     begin
         case(placeholder_digit)
-        4'b0000: seg = 7'b0000001; // "0"     
-        4'b0001: seg = 7'b1001111; // "1" 
-        4'b0010: seg = 7'b0010010; // "2" 
-        4'b0011: seg = 7'b0000110; // "3" 
-        4'b0100: seg = 7'b1001100; // "4" 
-        4'b0101: seg = 7'b0100100; // "5" 
-        4'b0110: seg = 7'b0100000; // "6" 
-        4'b0111: seg = 7'b0001111; // "7" 
-        4'b1000: seg = 7'b0000000; // "8"     
-        4'b1001: seg = 7'b0000100; // "9" 
-        default: seg = 7'b0000001; // "0"
+        4'b0000: seg <= 7'b0000001; // "0"     
+        4'b0001: seg <= 7'b1001111; // "1" 
+        4'b0010: seg <= 7'b0010010; // "2" 
+        4'b0011: seg <= 7'b0000110; // "3" 
+        4'b0100: seg <= 7'b1001100; // "4" 
+        4'b0101: seg <= 7'b0100100; // "5" 
+        4'b0110: seg <= 7'b0100000; // "6" 
+        4'b0111: seg <= 7'b0001111; // "7" 
+        4'b1000: seg <= 7'b0000000; // "8"     
+        4'b1001: seg <= 7'b0000100; // "9" 
+        default: seg <= 7'b0000001; // "0"
         endcase
     end
     

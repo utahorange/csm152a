@@ -85,33 +85,30 @@ module lab3_clock (input clk_1HZ, input clk_2HZ, input clk_50MHZ, output reg [7:
             minutes2_counter <= 0;
         end
         
-        // Display the updated seven_segN digits on the basys3 board.
-            // Set all the board's digits to 0
     end
     
     always @(posedge clk_50MHZ) begin
         case(refresh_counter[3:2])
             2'b00: begin
                 an  <= 4'b1110; // Digit 0 ON (Active Low for Basys3)
-                // seg <= seven_seg0;
                 placeholder_digit <= seconds1_counter;
             end
             2'b01: begin
                 an  <= 4'b1101; // Digit 1 ON
-                // seg <= seven_seg1;
                 placeholder_digit <= seconds2_counter;
             end
             2'b10: begin
                 an  <= 4'b1011; // Digit 2 ON
-                // seg <= seven_seg2;
                 placeholder_digit <= minutes1_counter;
             end
             2'b11: begin
                 an  <= 4'b0111; // Digit 3 ON
-                // seg <= seven_seg3;
                 placeholder_digit <= minutes2_counter;
             end
         endcase
+        
+        // Display the updated seven_segN digits on the basys3 board.
+        // Set all the board's digits to 0
     end
     
     always @(*)

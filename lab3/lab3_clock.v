@@ -23,14 +23,17 @@ module clock_generator(
     input clk, 
     output reg clk_1HZ, 
     output reg clk_2HZ, 
-    output reg clk_50MHZ);
+    output reg clk_50MHZ, 
+    output reg clk_1_25HZ);
 
     parameter CLOCK_DIV_1_HZ = 100_000_000;
+    parameter CLOCK_DIV_1_25_HZ = 80_000_000;
     parameter CLOCK_DIV_2_HZ = 50_000_000;
     parameter CLOCK_DIV_50_MHZ = 50_000;
     reg [26:0] counter_to_1HZ = 26'b0; // per clock tick
     reg [26:0] counter_to_2HZ = 26'b0; // per clock tick
     reg [26:0] counter_to_50MHZ = 26'b0; // per clock tick
+    reg [26:0] counter_to_1_25HZ = 26'b0; // per clock tick
 
     always @(posedge clk) begin
         if (counter_to_1HZ == CLOCK_DIV_1_HZ - 1) begin // global counter reset 
@@ -54,6 +57,15 @@ module clock_generator(
         begin
             counter_to_50MHZ <= counter_to_50MHZ + 1;
         end
+        
+        if (counter_to_1_25HZ == CLOCK_DIV_1_25_HZ - 1) begin // global counter reset 
+            clk_1_25HZ <= ~clk_1_25HZ;
+            counter_to_1_25HZ <= 0;
+        end else
+        begin
+            counter_to_1_25HZ <= counter_to_1_25HZ + 1;
+        end
+        
     end
 endmodule
 

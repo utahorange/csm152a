@@ -23,17 +23,14 @@ module clock_generator(
     input clk, 
     output reg clk_1HZ, 
     output reg clk_2HZ, 
-    output reg clk_50MHZ, 
-    output reg clk_1_25HZ);
+    reg clk_50MHZ);
 
     parameter CLOCK_DIV_1_HZ = 100_000_000;
-    parameter CLOCK_DIV_1_25_HZ = 80_000_000;
     parameter CLOCK_DIV_2_HZ = 50_000_000;
     parameter CLOCK_DIV_50_MHZ = 50_000;
     reg [26:0] counter_to_1HZ = 26'b0; // per clock tick
     reg [26:0] counter_to_2HZ = 26'b0; // per clock tick
     reg [26:0] counter_to_50MHZ = 26'b0; // per clock tick
-    reg [26:0] counter_to_1_25HZ = 26'b0; // per clock tick
 
     always @(posedge clk) begin
         if (counter_to_1HZ == CLOCK_DIV_1_HZ - 1) begin // global counter reset 
@@ -57,15 +54,6 @@ module clock_generator(
         begin
             counter_to_50MHZ <= counter_to_50MHZ + 1;
         end
-        
-        if (counter_to_1_25HZ == CLOCK_DIV_1_25_HZ - 1) begin // global counter reset 
-            clk_1_25HZ <= ~clk_1_25HZ;
-            counter_to_1_25HZ <= 0;
-        end else
-        begin
-            counter_to_1_25HZ <= counter_to_1_25HZ + 1;
-        end
-        
     end
 endmodule
 
@@ -85,75 +73,37 @@ module lab3_clock (input clk, input clk_1HZ, input clk_2HZ, input clk_50MHZ,
     reg btnPause_sync0, btnPause_sync1;
     reg btnPause_prev = 0;
     
-    // Synchronized pause_state for clk_1HZ domain
-    reg pause_state_sync = 0;
-
-    reg btnReset_sync0, btnReset_sync1;
-    reg btnReset_prev = 0;
-    
-    // Synchronizers for clk_1HZ domain - synchronize reset button
-    reg btnReset_sync1HZ_0, btnReset_sync1HZ_1;
-    reg btnReset_prev_1HZ = 0;
-
     always @(posedge clk) begin
         // do this sync business to align button input with clock of FPGA
-
-        btnReset_sync0 <= btnReset;
-        btnReset_sync1 <= btnReset_sync0;
-        btnReset_prev <= btnReset_sync1;
-
         btnPause_sync0 <= btnPause;
         btnPause_sync1 <= btnPause_sync0;
+
         btnPause_prev <= btnPause_sync1;
-
-        // rising edge of reset button: clear pause state
-        if (btnReset_sync1 & !btnReset_prev) begin
-            pause_state <= 0;
-        end
-
-        // rising edge of pause button: toggle pause state
-        if (btnPause_sync1 & !btnPause_prev)
-            pause_state <= ~pause_state;
-
+        // rising edge of button: make level-triggered into edge-triggered because our scan is so fast
+        if (btnPause_sync1 && !btnPause_prev)
+            pause_state <= ~pause_state; 
     end
     
     always @(posedge clk_1HZ) begin  
-        // Synchronize reset button to clk_1HZ domain
-        btnReset_sync1HZ_0 <= btnReset_sync1;
-        btnReset_sync1HZ_1 <= btnReset_sync1HZ_0;
-        btnReset_prev_1HZ <= btnReset_sync1HZ_1;
-        
-        // Synchronize pause_state to clk_1HZ domain
-        pause_state_sync <= pause_state;
-
-        // Edge-sensitive reset: detect rising edge of reset button in clk_1HZ domain
-        if (btnReset_sync1HZ_1 & !btnReset_prev_1HZ) begin
+        if (!pause_state && seconds1_counter == 9) begin
+            seconds2_counter <= seconds2_counter + 1;
             seconds1_counter <= 0;
-            seconds2_counter <= 0;
-            minutes1_counter <= 0;
-            minutes2_counter <= 0;
-        end else if (!pause_state_sync) begin
-            // Only increment if not paused and not resetting
-            if (seconds1_counter == 9) begin
-                seconds2_counter <= seconds2_counter + 1;
-                seconds1_counter <= 0;
-            end else begin
-                seconds1_counter <= seconds1_counter + 1;
-            end
+        end else if (!pause_state) begin
+            seconds1_counter <= seconds1_counter + 1;
+        end
 
-            if (seconds2_counter == 5 && seconds1_counter == 9) begin
-                minutes1_counter <= minutes1_counter + 1;
-                seconds2_counter <= 0;
-            end
-            
-            if (minutes1_counter == 9 && seconds2_counter == 5 && seconds1_counter == 9) begin
-                minutes2_counter <= minutes2_counter + 1;
-                minutes1_counter <= 0;
-            end
-            
-            if (minutes2_counter == 9 && minutes1_counter == 9) begin
-                minutes2_counter <= 0;
-            end
+        if (!pause_state && seconds2_counter == 5 && seconds1_counter == 9) begin
+            minutes1_counter <= minutes1_counter + 1;
+            seconds2_counter <= 0;
+        end
+        
+        if (!pause_state && minutes1_counter == 9 && seconds2_counter == 5 && seconds1_counter == 9) begin
+            minutes2_counter <= minutes2_counter + 1;
+            minutes1_counter <= 0;
+        end
+        
+        if (!pause_state && minutes2_counter == 9 && minutes1_counter == 9) begin
+            minutes2_counter <= 0;
         end
         
     end

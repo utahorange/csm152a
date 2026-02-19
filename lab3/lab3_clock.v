@@ -165,13 +165,21 @@ module lab3_clock (
 
     always @(posedge active_clk or posedge reset) begin
         if (reset) begin
-            seconds1_counter <= 0;
-            seconds2_counter <= 0;
-            minutes1_counter <= 0;
-            minutes2_counter <= 0;
+            seconds1_counter <= 4'b0;
+            seconds2_counter <= 4'b0;
+            minutes1_counter <= 4'b0;
+            minutes2_counter <= 4'b0;
         end else begin
             if (adjust) begin
-                if (select) begin
+                if (select) begin // adjust minutes
+                    if (minutes1_counter == 9 && seconds2_counter == 5 && seconds1_counter == 9) begin
+                        minutes2_counter <= minutes2_counter + 1;
+                        minutes1_counter <= 0;
+                    end
+                    if (minutes2_counter == 9 && minutes1_counter == 9) begin
+                        minutes2_counter <= 0;
+                    end
+                end else begin //  adjust seconds
                     if (seconds1_counter == 9) begin
                         seconds2_counter <= seconds2_counter + 1;
                         seconds1_counter <= 0;
@@ -180,14 +188,6 @@ module lab3_clock (
                     end
                     if (seconds2_counter == 5 && seconds1_counter == 9) begin
                         seconds2_counter <= 0;
-                    end
-                end else begin 
-                    if (minutes1_counter == 9 && seconds2_counter == 5 && seconds1_counter == 9) begin
-                        minutes2_counter <= minutes2_counter + 1;
-                        minutes1_counter <= 0;
-                    end
-                    if (minutes2_counter == 9 && minutes1_counter == 9) begin
-                        minutes2_counter <= 0;
                     end
                 end
             end else if (!pause) begin
@@ -212,6 +212,7 @@ module lab3_clock (
                     minutes2_counter <= 0;
                 end
             end
+            // if paused and not in adjusting mode
         end
     end
     
@@ -221,20 +222,20 @@ module lab3_clock (
         digit_to_display <= digit_to_display + 1;
         case(digit_to_display)
             2'b00: begin
-                an <= (adjust && select && clk_blink) ? 4'b1111 : 4'b1110;
                 placeholder_digit <= seconds1_counter;
+                an <= (adjust && select && clk_blink) ? 4'b1111 : 4'b1110;
             end
             2'b01: begin
-                an <= (adjust && select && clk_blink) ? 4'b1111 : 4'b1101;
                 placeholder_digit <= seconds2_counter;
+                an <= (adjust && select && clk_blink) ? 4'b1111 : 4'b1101;
             end
             2'b10: begin
-                an <= (adjust && !select && clk_blink) ? 4'b1111 : 4'b1011;
                 placeholder_digit <= minutes1_counter;
+                an <= (adjust && !select && clk_blink) ? 4'b1111 : 4'b1011;
             end
             2'b11: begin
-                an <= (adjust && !select && clk_blink) ? 4'b1111 : 4'b0111;
                 placeholder_digit <= minutes2_counter;
+                an <= (adjust && !select && clk_blink) ? 4'b1111 : 4'b0111;
             end
         endcase
     end

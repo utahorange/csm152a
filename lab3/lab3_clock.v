@@ -183,7 +183,7 @@ module lab3_clock (
                     if (seconds1_counter == 9) begin
                         seconds2_counter <= seconds2_counter + 1;
                         seconds1_counter <= 0;
-                    end begin
+                    end else begin
                         seconds1_counter <= seconds1_counter + 1;
                     end
                     if (seconds2_counter == 5 && seconds1_counter == 9) begin
@@ -194,7 +194,7 @@ module lab3_clock (
                 if (seconds1_counter == 9) begin
                     seconds2_counter <= seconds2_counter + 1;
                     seconds1_counter <= 0;
-                end begin
+                end else begin
                     seconds1_counter <= seconds1_counter + 1;
                 end
 

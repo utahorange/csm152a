@@ -7,26 +7,45 @@ module basys3 (/*AUTOARG*/
     );
 
     // need buttons 
-    wire clock_1HZ;
-    wire clock_2HZ;
-    wire clock_50MHZ;
+    wire clock_1HZ; // normal 
+    wire clock_2HZ; // adjustment clock
+    wire clock_1_5_HZ; // blinking clock
+    wire clock_50MHZ; // display clock
+
+    wire pause_tog, adj_tog, sel_tog;
 
     clock_generator clock_gen ( .clk(clk), 
                                 .clk_1HZ (clock_1HZ), 
                                 .clk_2HZ(clock_2HZ), 
-                                .clk_50MHZ(clock_50MHZ) );
+                                .clk_50MHZ(clock_50MHZ),
+                                .clk_1_5_HZ(clock_1_5_HZ));
+
+    input_proc pause_debounce( .clk(clock_1_5_HZ),
+                                .reset(btnR),
+                                .button_in(btnS),
+                                .button_toggle(pause_tog));
+
+    input_proc select_debounce( .clk(clock_1_5_HZ),
+                                .reset(btnR),
+                                .button_in(sw[1]),
+                                .button_toggle(sel_tog));
+
+    input_proc adjust_debounce( .clk(clock_1_5_HZ),
+                                .reset(btnR),
+                                .button_in(sw[0]),
+                                .button_toggle(adj_tog));
 
     lab3_clock main_counter ( .clk(clk),
                               .clk_1HZ(clock_1HZ), 
                               .clk_2HZ(clock_2HZ), 
                               .clk_50MHZ(clock_50MHZ),
-                              .btnReset(btnR),
-                              .btnPause(btnS),
-                              .swAdjust(sw[0]),
-                              .swSelect(sw[1]),
+                              .reset(rst),
+                              .pause(pause_tog),
+                              .adjust(adj_tog),
+                              .select(sel_tog),
                               .seg(seg), 
                               .an(an) );
-   
+
 endmodule
 
 

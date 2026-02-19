@@ -23,14 +23,17 @@ module clock_generator(
     input clk, 
     output reg clk_1HZ, 
     output reg clk_2HZ, 
-    reg clk_50MHZ);
+    output reg clk_1_5_HZ,
+    output reg clk_50MHZ);
 
     parameter CLOCK_DIV_1_HZ = 100_000_000;
     parameter CLOCK_DIV_2_HZ = 50_000_000;
+    parameter CLOCK_DIV_1_5_HZ = 80_000_000;
     parameter CLOCK_DIV_50_MHZ = 50_000;
-    reg [26:0] counter_to_1HZ = 26'b0; // per clock tick
-    reg [26:0] counter_to_2HZ = 26'b0; // per clock tick
-    reg [26:0] counter_to_50MHZ = 26'b0; // per clock tick
+    reg [26:0] counter_to_1HZ = 26'b0; // per second
+    reg [26:0] counter_to_2HZ = 26'b0; // adjustment
+    reg [26:0] counter_to_1_5_HZ = 26'b0; // blinking
+    reg [26:0] counter_to_50MHZ = 26'b0; // display
 
     always @(posedge clk) begin
         if (counter_to_1HZ == CLOCK_DIV_1_HZ - 1) begin // global counter reset 
@@ -54,11 +57,89 @@ module clock_generator(
         begin
             counter_to_50MHZ <= counter_to_50MHZ + 1;
         end
+        if (counter_to_1_5_HZ == CLOCK_DIV_1_5_HZ - 1) begin // global counter reset 
+            clk_1_5_HZ <= ~clk_1_5_HZ;
+            counter_to_1_5_HZ <= 0;
+        end else
+        begin
+            counter_to_1_5_HZ <= counter_to_1_5_HZ + 1;
+        end
     end
 endmodule
 
+module input_proc (
+    input  wire clk,          // slow clock (1kHz-10kHz ideal)
+    input  wire reset,
+    input  wire button_in,     // asynchronous, noisy input
+
+    output reg  button_level,  // debounced level
+    output reg  button_pulse,  // 1-clock pulse on rising edge
+    output reg  button_toggle  // toggles on each press
+);
+
+    // =========================
+    // Synchronizer
+    // =========================
+    reg sync_0, sync_1;
+
+    always @(posedge clk) begin
+        sync_0 <= button_in;
+        sync_1 <= sync_0;
+    end
+
+    // =========================
+    // Debouncer
+    // =========================
+    localparam integer DEBOUNCE_COUNT = 20; // ~20 ms @ 1 kHz
+    integer debounce_cnt = 0;
+    reg debounced = 0;
+
+    always @(posedge clk or posedge reset) begin
+        if (reset) begin
+            debounce_cnt <= 0;
+            debounced    <= 0;
+        end else begin
+            if (sync_1 == debounced) begin
+                debounce_cnt <= 0;
+            end else begin
+                if (debounce_cnt == DEBOUNCE_COUNT - 1) begin
+                    debounced    <= sync_1;
+                    debounce_cnt <= 0;
+                end else begin
+                    debounce_cnt <= debounce_cnt + 1;
+                end
+            end
+        end
+    end
+
+    // =========================
+    // Edge detection
+    // =========================
+    reg debounced_d;
+
+    always @(posedge clk or posedge reset) begin
+        if (reset) begin
+            debounced_d   <= 0;
+            button_pulse  <= 0;
+            button_toggle <= 0;
+            button_level  <= 0;
+        end else begin
+            debounced_d  <= debounced;
+            button_level <= debounced;
+
+            // Rising edge detect
+            button_pulse <= debounced & ~debounced_d;
+
+            // Toggle on rising edge
+            if (debounced & ~debounced_d)
+                button_toggle <= ~button_toggle;
+        end
+    end
+
+endmodule
+
 module lab3_clock (input clk, input clk_1HZ, input clk_2HZ, input clk_50MHZ, 
-                   input btnReset, input btnPause, input swAdjust, input swSelect,
+                   input reset, input pause, input adjust, input select,
                     output reg [7:0] seg, output reg [3:0] an);
 
     reg [3:0] seconds1_counter = 4'b0;
@@ -68,46 +149,32 @@ module lab3_clock (input clk, input clk_1HZ, input clk_2HZ, input clk_50MHZ,
     
     reg [3:0] placeholder_digit = 4'b0000; // the digit that is currentl being displayed by all the anodes
     reg [1:0] digit_to_display = 0; // which anode to turn on 
-
-    reg pause_state = 0; // 1 for in pause_state
-    reg btnPause_sync0, btnPause_sync1;
-    reg btnPause_prev = 0;
-    
-    always @(posedge clk) begin
-        // do this sync business to align button input with clock of FPGA
-        btnPause_sync0 <= btnPause;
-        btnPause_sync1 <= btnPause_sync0;
-
-        btnPause_prev <= btnPause_sync1;
-        // rising edge of button: make level-triggered into edge-triggered because our scan is so fast
-        if (btnPause_sync1 && !btnPause_prev)
-            pause_state <= ~pause_state; 
-    end
-    
+   
     always @(posedge clk_1HZ) begin  
-        if (!pause_state && seconds1_counter == 9) begin
+        if (!pause && seconds1_counter == 9) begin
             seconds2_counter <= seconds2_counter + 1;
             seconds1_counter <= 0;
-        end else if (!pause_state) begin
+        end else if (!pause) begin
             seconds1_counter <= seconds1_counter + 1;
         end
 
-        if (!pause_state && seconds2_counter == 5 && seconds1_counter == 9) begin
+        if (!pause && seconds2_counter == 5 && seconds1_counter == 9) begin
             minutes1_counter <= minutes1_counter + 1;
             seconds2_counter <= 0;
         end
         
-        if (!pause_state && minutes1_counter == 9 && seconds2_counter == 5 && seconds1_counter == 9) begin
+        if (!pause && minutes1_counter == 9 && seconds2_counter == 5 && seconds1_counter == 9) begin
             minutes2_counter <= minutes2_counter + 1;
             minutes1_counter <= 0;
         end
         
-        if (!pause_state && minutes2_counter == 9 && minutes1_counter == 9) begin
+        if (!pause && minutes2_counter == 9 && minutes1_counter == 9) begin
             minutes2_counter <= 0;
         end
         
     end
     
+    // --- Display Logic ---
     always @(posedge clk_50MHZ) begin
         digit_to_display <= digit_to_display + 1;
         case(digit_to_display)
@@ -129,7 +196,7 @@ module lab3_clock (input clk, input clk_1HZ, input clk_2HZ, input clk_50MHZ,
             end
         endcase
     end
-    
+
     always @(*)
     begin
         case(placeholder_digit)
@@ -148,4 +215,3 @@ module lab3_clock (input clk, input clk_1HZ, input clk_2HZ, input clk_50MHZ,
     end
     
 endmodule
-

@@ -28,8 +28,8 @@ module clock_generator(
 
     parameter CLOCK_DIV_1_HZ = 50_000_000; // normal
     parameter CLOCK_DIV_2_HZ = 25_000_000; // adjust
-    parameter CLOCK_DIV_1_5_HZ = 166_667; // display
-    parameter CLOCK_DIV_50_MHZ = 35_000_000; // blinking
+    parameter CLOCK_DIV_1_5_HZ = 35_000_000; // blinking  
+    parameter CLOCK_DIV_50_MHZ = 50_000; // display 
 
     reg [26:0] counter_to_1HZ = 26'b0; // per second
     reg [26:0] counter_to_2HZ = 26'b0; // adjustment
@@ -172,14 +172,6 @@ module lab3_clock (
         end else begin
             if (adjust) begin
                 if (select) begin // adjust minutes
-                    if (minutes1_counter == 9 && seconds2_counter == 5 && seconds1_counter == 9) begin
-                        minutes2_counter <= minutes2_counter + 1;
-                        minutes1_counter <= 0;
-                    end
-                    if (minutes2_counter == 9 && minutes1_counter == 9) begin
-                        minutes2_counter <= 0;
-                    end
-                end else begin //  adjust seconds
                     if (seconds1_counter == 9) begin
                         seconds2_counter <= seconds2_counter + 1;
                         seconds1_counter <= 0;
@@ -189,8 +181,18 @@ module lab3_clock (
                     if (seconds2_counter == 5 && seconds1_counter == 9) begin
                         seconds2_counter <= 0;
                     end
+                end else begin //  adjust seconds
+                    if (minutes1_counter == 9) begin
+                        minutes2_counter <= minutes2_counter + 1;
+                        minutes1_counter <= 0;
+                    end else begin
+                        minutes1_counter <= minutes1_counter + 1;
+                    end
+                    if (minutes2_counter == 9 && minutes1_counter == 9) begin
+                        minutes2_counter <= 0;
+                    end
                 end
-            end else if (!pause) begin
+            end else if (!pause) begin // normal behavior
                 if (seconds1_counter == 9) begin
                     seconds2_counter <= seconds2_counter + 1;
                     seconds1_counter <= 0;

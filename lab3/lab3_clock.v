@@ -150,28 +150,46 @@ module lab3_clock (input clk, input clk_1HZ, input clk_2HZ, input clk_50MHZ,
     reg [3:0] placeholder_digit = 4'b0000; // the digit that is currentl being displayed by all the anodes
     reg [1:0] digit_to_display = 0; // which anode to turn on 
    
-    always @(posedge clk_1HZ) begin  
-        if (!pause && seconds1_counter == 9) begin
-            seconds2_counter <= seconds2_counter + 1;
-            seconds1_counter <= 0;
-        end else if (!pause) begin
-            seconds1_counter <= seconds1_counter + 1;
-        end
+    wire active_clk;
+    assign active_clk = adjust ? clk_2HZ : clk_1HZ;
 
-        if (!pause && seconds2_counter == 5 && seconds1_counter == 9) begin
-            minutes1_counter <= minutes1_counter + 1;
+    always @(posedge active_clk or posedge reset) begin
+        if (reset) begin
+            seconds1_counter <= 0;
             seconds2_counter <= 0;
-        end
-        
-        if (!pause && minutes1_counter == 9 && seconds2_counter == 5 && seconds1_counter == 9) begin
-            minutes2_counter <= minutes2_counter + 1;
             minutes1_counter <= 0;
-        end
-        
-        if (!pause && minutes2_counter == 9 && minutes1_counter == 9) begin
             minutes2_counter <= 0;
+        end else begin
+            if (adjust) begin
+                if (select) begin
+                    
+                end else begin 
+                end
+            
+            end else if (!pause) begin
+                if (seconds1_counter == 9) begin
+                    seconds2_counter <= seconds2_counter + 1;
+                    seconds1_counter <= 0;
+                end begin
+                    seconds1_counter <= seconds1_counter + 1;
+                end
+
+                if (seconds2_counter == 5 && seconds1_counter == 9) begin
+                    minutes1_counter <= minutes1_counter + 1;
+                    seconds2_counter <= 0;
+                end
+                
+                if (minutes1_counter == 9 && seconds2_counter == 5 && seconds1_counter == 9) begin
+                    minutes2_counter <= minutes2_counter + 1;
+                    minutes1_counter <= 0;
+                end
+                
+                if (minutes2_counter == 9 && minutes1_counter == 9) begin
+                    minutes2_counter <= 0;
+                end
+            end
         end
-        
+       
     end
     
     // --- Display Logic ---
@@ -210,7 +228,7 @@ module lab3_clock (input clk, input clk_1HZ, input clk_2HZ, input clk_50MHZ,
         4'b0111: seg <= 7'b1111000; // "7" 
         4'b1000: seg <= 7'b0000000; // "8"     
         4'b1001: seg <= 7'b0010000; // "9"
-        default: seg <= 7'b0000001; // default 
+        default: seg <= 7'b1111111; // default 
         endcase
     end
     

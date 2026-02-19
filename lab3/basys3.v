@@ -39,7 +39,7 @@ module basys3 (/*AUTOARG*/
                               .clk_1HZ(clock_1HZ), 
                               .clk_2HZ(clock_2HZ), 
                               .clk_50MHZ(clock_50MHZ),
-                              .reset(rst),
+                              .reset(BtnR),
                               .pause(pause_tog),
                               .adjust(adj_tog),
                               .select(sel_tog),

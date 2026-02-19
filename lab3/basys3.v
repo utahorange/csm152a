@@ -35,10 +35,10 @@ module basys3 (/*AUTOARG*/
                                 .button_in(sw[0]),
                                 .button_toggle(adj_tog));
 
-    lab3_clock main_counter ( .clk(clk),
-                              .clk_1HZ(clock_1HZ), 
-                              .clk_2HZ(clock_2HZ), 
-                              .clk_50MHZ(clock_50MHZ),
+    lab3_clock main_counter ( .clk_normal(clock_1HZ), 
+                              .clk_adjust(clock_2HZ), 
+                              .clk_display(clock_50MHZ),
+                              .clk_blink(clock_1_5_HZ),
                               .reset(BtnR),
                               .pause(pause_tog),
                               .adjust(adj_tog),

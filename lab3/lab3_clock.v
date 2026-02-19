@@ -26,10 +26,11 @@ module clock_generator(
     output reg clk_1_5_HZ,
     output reg clk_50MHZ);
 
-    parameter CLOCK_DIV_1_HZ = 100_000_000;
-    parameter CLOCK_DIV_2_HZ = 50_000_000;
-    parameter CLOCK_DIV_1_5_HZ = 80_000_000;
-    parameter CLOCK_DIV_50_MHZ = 50_000;
+    parameter CLOCK_DIV_1_HZ = 100_000_000; // normal
+    parameter CLOCK_DIV_2_HZ = 50_000_000; // adjust
+    parameter CLOCK_DIV_1_5_HZ = 80_000_000; // display
+    parameter CLOCK_DIV_50_MHZ = 50_000; // blinking
+
     reg [26:0] counter_to_1HZ = 26'b0; // per second
     reg [26:0] counter_to_2HZ = 26'b0; // adjustment
     reg [26:0] counter_to_1_5_HZ = 26'b0; // blinking
@@ -138,9 +139,18 @@ module input_proc (
 
 endmodule
 
-module lab3_clock (input clk, input clk_1HZ, input clk_2HZ, input clk_50MHZ, 
-                   input reset, input pause, input adjust, input select,
-                    output reg [7:0] seg, output reg [3:0] an);
+module lab3_clock (
+    input wire clk_normal, // normal
+    input wire clk_adjust, // adjust
+    input wire clk_display, // display
+    input wire clk_blink, // blinking
+    input wire reset, 
+    input wire pause, 
+    input wire adjust, 
+    input wire select,
+    output reg [7:0] seg, 
+    output reg [3:0] an
+);
 
     reg [3:0] seconds1_counter = 4'b0;
     reg [3:0] seconds2_counter = 4'b0;
@@ -151,7 +161,7 @@ module lab3_clock (input clk, input clk_1HZ, input clk_2HZ, input clk_50MHZ,
     reg [1:0] digit_to_display = 0; // which anode to turn on 
    
     wire active_clk;
-    assign active_clk = adjust ? clk_2HZ : clk_1HZ;
+    assign active_clk = adjust ? clk_adjust : clk_normal;
 
     always @(posedge active_clk or posedge reset) begin
         if (reset) begin
@@ -162,10 +172,23 @@ module lab3_clock (input clk, input clk_1HZ, input clk_2HZ, input clk_50MHZ,
         end else begin
             if (adjust) begin
                 if (select) begin
-                    
+                    if (seconds1_counter == 9) begin
+                        seconds2_counter <= seconds2_counter + 1;
+                        seconds1_counter <= 0;
+                    end begin
+                        seconds1_counter <= seconds1_counter + 1;
+                    end
+                    if (seconds2_counter == 5 && seconds1_counter == 9) begin
+                        seconds2_counter <= 0;
+                    end
                 end else begin 
-                end
-            
+                    if (minutes1_counter == 9 && seconds2_counter == 5 && seconds1_counter == 9) begin
+                        minutes2_counter <= minutes2_counter + 1;
+                        minutes1_counter <= 0;
+                    end
+                    if (minutes2_counter == 9 && minutes1_counter == 9) begin
+                        minutes2_counter <= 0;
+                    end
             end else if (!pause) begin
                 if (seconds1_counter == 9) begin
                     seconds2_counter <= seconds2_counter + 1;
@@ -189,27 +212,28 @@ module lab3_clock (input clk, input clk_1HZ, input clk_2HZ, input clk_50MHZ,
                 end
             end
         end
+        end
        
     end
     
     // --- Display Logic ---
-    always @(posedge clk_50MHZ) begin
+    always @(posedge clk_display) begin
         digit_to_display <= digit_to_display + 1;
         case(digit_to_display)
             2'b00: begin
-                an  <= 4'b1110; // Digit 0 ON (Active Low for Basys3)
+                an <= (adjust && select && clk_blink) ? 4'b1111 : 4'b0111;
                 placeholder_digit <= seconds1_counter;
             end
             2'b01: begin
-                an  <= 4'b1101; // Digit 1 ON
+                an <= (adjust && select && clk_blink) ? 4'b1111 : 4'b1011;
                 placeholder_digit <= seconds2_counter;
             end
             2'b10: begin
-                an  <= 4'b1011; // Digit 2 ON
+                an <= (adjust && !select && clk_blink) ? 4'b1111 : 4'b1101;
                 placeholder_digit <= minutes1_counter;
             end
             2'b11: begin
-                an  <= 4'b0111; // Digit 3 ON
+                an <= (adjust && !select && clk_blink) ? 4'b1111 : 4'b1110;
                 placeholder_digit <= minutes2_counter;
             end
         endcase
@@ -218,17 +242,17 @@ module lab3_clock (input clk, input clk_1HZ, input clk_2HZ, input clk_50MHZ,
     always @(*)
     begin
         case(placeholder_digit)
-        4'b0000: seg <= 7'b1000000; // "0"     
-        4'b0001: seg <= 7'b1111001; // "1" 
-        4'b0010: seg <= 7'b0100100; // "2" 
-        4'b0011: seg <= 7'b0110000; // "3" 
-        4'b0100: seg <= 7'b0011001; // "4" 
-        4'b0101: seg <= 7'b0010010; // "5" 
-        4'b0110: seg <= 7'b0000010; // "6" 
-        4'b0111: seg <= 7'b1111000; // "7" 
-        4'b1000: seg <= 7'b0000000; // "8"     
-        4'b1001: seg <= 7'b0010000; // "9"
-        default: seg <= 7'b1111111; // default 
+            4'b0000: seg <= 7'b1000000; // "0"     
+            4'b0001: seg <= 7'b1111001; // "1" 
+            4'b0010: seg <= 7'b0100100; // "2" 
+            4'b0011: seg <= 7'b0110000; // "3" 
+            4'b0100: seg <= 7'b0011001; // "4" 
+            4'b0101: seg <= 7'b0010010; // "5" 
+            4'b0110: seg <= 7'b0000010; // "6" 
+            4'b0111: seg <= 7'b1111000; // "7" 
+            4'b1000: seg <= 7'b0000000; // "8"     
+            4'b1001: seg <= 7'b0010000; // "9"
+            default: seg <= 7'b1111111; // default 
         endcase
     end
     

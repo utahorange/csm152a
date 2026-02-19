@@ -12,7 +12,7 @@ module basys3 (/*AUTOARG*/
     wire clock_1_5_HZ; // blinking clock
     wire clock_50MHZ; // display clock
 
-    wire pause_tog, adj_tog, sel_tog;
+    wire pause_tog;
 
     clock_generator clock_gen ( .clk(clk), 
                                 .clk_1HZ (clock_1HZ), 
@@ -25,24 +25,15 @@ module basys3 (/*AUTOARG*/
                                 .button_in(btnS),
                                 .button_toggle(pause_tog));
 
-    input_proc select_debounce( .clk(clock_1_5_HZ),
-                                .reset(btnR),
-                                .button_in(sw[1]),
-                                .button_toggle(sel_tog));
-
-    input_proc adjust_debounce( .clk(clock_1_5_HZ),
-                                .reset(btnR),
-                                .button_in(sw[0]),
-                                .button_toggle(adj_tog));
-
+    // Switches are level signals - use directly, no debouncing needed
     lab3_clock main_counter ( .clk_normal(clock_1HZ), 
                               .clk_adjust(clock_2HZ), 
                               .clk_display(clock_50MHZ),
                               .clk_blink(clock_1_5_HZ),
                               .reset(btnR),
                               .pause(pause_tog),
-                              .adjust(adj_tog),
-                              .select(sel_tog),
+                              .adjust(sw[0]),  // Switch: level signal
+                              .select(sw[1]), // Switch: level signal
                               .seg(seg), 
                               .an(an) );
 

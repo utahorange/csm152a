@@ -26,10 +26,10 @@ module clock_generator(
     output reg clk_1_5_HZ,
     output reg clk_50MHZ);
 
-    parameter CLOCK_DIV_1_HZ = 100_000_000; // normal
-    parameter CLOCK_DIV_2_HZ = 50_000_000; // adjust
-    parameter CLOCK_DIV_1_5_HZ = 80_000_000; // display
-    parameter CLOCK_DIV_50_MHZ = 50_000; // blinking
+    parameter CLOCK_DIV_1_HZ = 50_000_000; // normal
+    parameter CLOCK_DIV_2_HZ = 25_000_000; // adjust
+    parameter CLOCK_DIV_1_5_HZ = 166_667; // display
+    parameter CLOCK_DIV_50_MHZ = 35_000_000; // blinking
 
     reg [26:0] counter_to_1HZ = 26'b0; // per second
     reg [26:0] counter_to_2HZ = 26'b0; // adjustment

@@ -189,6 +189,7 @@ module lab3_clock (
                     if (minutes2_counter == 9 && minutes1_counter == 9) begin
                         minutes2_counter <= 0;
                     end
+                end
             end else if (!pause) begin
                 if (seconds1_counter == 9) begin
                     seconds2_counter <= seconds2_counter + 1;
@@ -212,28 +213,27 @@ module lab3_clock (
                 end
             end
         end
-        end
-       
     end
+    
     
     // --- Display Logic ---
     always @(posedge clk_display) begin
         digit_to_display <= digit_to_display + 1;
         case(digit_to_display)
             2'b00: begin
-                an <= (adjust && select && clk_blink) ? 4'b1111 : 4'b0111;
+                an <= (adjust && select && clk_blink) ? 4'b1111 : 4'b1110;
                 placeholder_digit <= seconds1_counter;
             end
             2'b01: begin
-                an <= (adjust && select && clk_blink) ? 4'b1111 : 4'b1011;
+                an <= (adjust && select && clk_blink) ? 4'b1111 : 4'b1101;
                 placeholder_digit <= seconds2_counter;
             end
             2'b10: begin
-                an <= (adjust && !select && clk_blink) ? 4'b1111 : 4'b1101;
+                an <= (adjust && !select && clk_blink) ? 4'b1111 : 4'b1011;
                 placeholder_digit <= minutes1_counter;
             end
             2'b11: begin
-                an <= (adjust && !select && clk_blink) ? 4'b1111 : 4'b1110;
+                an <= (adjust && !select && clk_blink) ? 4'b1111 : 4'b0111;
                 placeholder_digit <= minutes2_counter;
             end
         endcase

@@ -73,22 +73,23 @@ module lab3_clock (input clk, input clk_1HZ, input clk_2HZ, input clk_50MHZ,
     reg btnPause_sync0, btnPause_sync1;
     reg btnPause_prev = 0;
 
-    reg reset_pulse = 0;
     reg btnReset_sync0, btnReset_sync1;
     reg btnReset_prev = 0;
+    
+    // Synchronizers for clk_1HZ domain
+    reg btnReset_sync1HZ_0, btnReset_sync1HZ_1;
+    reg btnReset_prev_1HZ = 0;
 
     always @(posedge clk) begin
         // do this sync business to align button input with clock of FPGA
 
         btnReset_sync0 <= btnReset;
         btnReset_sync1 <= btnReset_sync0;
-        btnReset_prev<= btnReset_sync1;
+        btnReset_prev <= btnReset_sync1;
 
         btnPause_sync0 <= btnPause;
         btnPause_sync1 <= btnPause_sync0;
         btnPause_prev <= btnPause_sync1;
-
-        reset_pulse <= btnReset_sync1 & ~btnReset_prev;
 
         // rising edge of button: make level-triggered into edge-triggered because our scan is so fast
         if (btnPause_sync1 & !btnPause_prev)
@@ -97,8 +98,13 @@ module lab3_clock (input clk, input clk_1HZ, input clk_2HZ, input clk_50MHZ,
     end
     
     always @(posedge clk_1HZ) begin  
+        // Synchronize reset button to clk_1HZ domain
+        btnReset_sync1HZ_0 <= btnReset_sync1;
+        btnReset_sync1HZ_1 <= btnReset_sync1HZ_0;
+        btnReset_prev_1HZ <= btnReset_sync1HZ_1;
 
-        if (reset_pulse) begin// TODO: so this is resetting on the next clock cycle, is this okay? or do we want reset anytime
+        // Detect rising edge of reset button in clk_1HZ domain
+        if (btnReset_sync1HZ_1 & !btnReset_prev_1HZ) begin
             seconds1_counter <= 0;
             seconds2_counter <= 0;
             minutes1_counter <= 0;

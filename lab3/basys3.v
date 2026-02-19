@@ -20,7 +20,7 @@ module basys3 (/*AUTOARG*/
                                 .clk_50MHZ(clock_50MHZ),
                                 .clk_1_5_HZ(clock_1_5_HZ));
 
-    input_proc pause_debounce( .clk(clock_1_5_HZ),
+    input_proc pause_debounce( .clk(clock_50MHZ),  // Use display clock (~2kHz) for proper debouncing
                                 .reset(btnR),
                                 .button_in(btnS),
                                 .button_toggle(pause_tog));

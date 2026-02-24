@@ -95,62 +95,49 @@ module vga_example (
     .hblnk(hblnk),
     .pclk(pclk)
   );
+    
+    localparam integer TOP_EDGE = 570;
+    localparam integer STICK_HEIGHT = 270;
+    localparam integer STICK_WIDTH = 64;
+    localparam integer STICK_SPACING = 32;
+    localparam integer NUM_STICKS = 8;
 
-  // This is a simple test pattern generator.
-
-  always @(posedge pclk)
-  begin
-    // Just pass these through.
-    hs <= hsync;
-    vs <= vsync;
-    // During blanking, make it it black.
-    if (vblnk || hblnk) {r,g,b} <= 12'h0_0_0; 
-    else
+    reg [7:0] sticks_x = {STICK_SPACING, STICK_SPACING*2 + STICK_WIDTH, STICK_SPACING*3 + STICK_WIDTH*2, 
+                    STICK_SPACING*4 + STICK_WIDTH*3, STICK_SPACING*5 + STICK_WIDTH*4, 
+                    STICK_SPACING*6 + STICK_WIDTH*5, STICK_SPACING*7 + STICK_WIDTH*6, 
+                    STICK_SPACING*8 + STICK_WIDTH*7};
+    reg [7:0] sticks_y = {TOP_EDGE - STICK_HEIGHT, TOP_EDGE - STICK_HEIGHT, TOP_EDGE - STICK_HEIGHT, TOP_EDGE - STICK_HEIGHT, TOP_EDGE - STICK_HEIGHT, TOP_EDGE - STICK_HEIGHT, TOP_EDGE - STICK_HEIGHT, TOP_EDGE - STICK_HEIGHT};
+    always @(posedge clk)
     begin
-      // Active display, top edge, make a yellow line.
-      if (vcount == 0) {r,g,b} <= 12'hf_f_0;
-      // Active display, bottom edge, make a red line.
-      else if (vcount == 599) {r,g,b} <= 12'hf_0_0;
-      // Active display, left edge, make a green line.
-      else if (hcount == 0) {r,g,b} <= 12'h0_f_0;
-      // Active display, right edge, make a blue line.
-      else if (hcount == 799) {r,g,b} <= 12'h0_0_f;
-      // Active display, interior, fill with gray.
-      // You will replace this with your own test.
-      else 
-        begin
-            
-            // Vertical Lines
-            if (((hcount == 20) || (hcount == 60)) && (vcount >= 20) && (vcount < 60)) {r,g,b} <= 12'hf_0_a;
-            else if (((hcount == 80) || (hcount == 120)) && ((vcount >= 40) && (vcount < 60))) {r,g,b} <= 12'h0_a_f;
-            
-            // Horizontal Lines
-            else if (((hcount > 80) && (hcount < 120)) && ((vcount == 40))) {r,g,b} <= 12'h0_a_f;
-            
-            // Diagonal Lines
-            else if (((hcount > 20) && (hcount < 60)) && ((vcount > 20) && (vcount <= 40))) 
-                begin
-                    if (hcount == vcount)   {r,g,b} <= 12'hf_0_a;
-                    else if (hcount == (80 - vcount))
-                        begin
-                            {r,g,b} <= 12'hf_0_a;
-                        end
-                    else    {r,g,b} <= 12'ha_a_a;   
-                end
-            
-            else if (((hcount > 80) && (hcount < 120)) && ((vcount > 20) && (vcount < 40))) 
-                 begin
-                     if (hcount == 120 - vcount)   {r,g,b} <= 12'h0_a_f;
-                     else if (hcount == 80 + vcount)
-                         begin
-                             {r,g,b} <= 12'h0_a_f;
-                         end
-                     else    {r,g,b} <= 12'ha_a_a;   
-                end
-            // Rest of the screen
-            else {r,g,b} <= 12'ha_a_a; //{r,g,b} <= 12'h8_8_8;   
-        end   
-    end
-  end
+        if (within_stick(hcount, vcount, sticks_x, sticks_y, STICK_WIDTH, STICK_HEIGHT) != 0) begin
+            {r,g,b} <= 12'hf_0_0;
+        end else begin
+            {r,g,b} <= 12'ha_a_a;
+        end
+     end
 
+endmodule
+
+module within_stick(
+    input wire [10:0] hcount,
+    input wire [10:0] vcount,
+
+    // this is a list of the bottom-left corners of the sticks
+    input reg [2:0] [9:0] sticks_x, // list of x coords
+    input reg [2:0] [9:0] sticks_y, // list of y coords
+    input wire [10:0] stick_w, // width of the stick
+    input wire [10:0] stick_h, // height of the stick
+    output reg [3:0] stick_number // "stick 8" is NOT in a stick
+                                  // "stick 7" is the last stick
+);
+    integer i;
+    stick_number <= 9;
+    always @(*) begin
+        for (i = 0; i < NUM_STICKS; i= i+1) begin
+            if ((hcount >= sticks_x[i]) && (hcount < sticks_x[i] + stick_w) &&
+                (vcount >= sticks_y[i]) && (vcount < sticks_y[i] + stick_h)) begin
+                stick_number = i; 
+            end
+        end
+    end
 endmodule

@@ -1,7 +1,11 @@
 # Constraints for CLK
-set_property PACKAGE_PIN W5 [get_ports clk]
-set_property IOSTANDARD LVCMOS33 [get_ports clk]
-create_clock -name external_clock -period 10.00 [get_ports clk]
+# set_property PACKAGE_PIN W5 [get_ports clk]
+# set_property IOSTANDARD LVCMOS33 [get_ports clk]
+# create_clock -name external_clock -period 10.00 [get_ports clk]
+
+# Clock constraints from original Basys-3_Lab3.xdc
+set_property -dict { PACKAGE_PIN W5   IOSTANDARD LVCMOS33 } [get_ports clk]
+create_clock -add -name sys_clk_pin -period 10.00 -waveform {0 5} [get_ports clk]
 
 # Constraints for VS and HS
 set_property PACKAGE_PIN R19 [get_ports {vs}]

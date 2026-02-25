@@ -10,6 +10,8 @@ how would we be able to update only one rectangle at a time
 our state changes are only full rectangles
 
 
+catching early causes stick to be red as well
+
 
 
 a stick has states of:
@@ -18,13 +20,18 @@ a stick has states of:
 - caught (green)
 - not caught (red)
 
-reg [2:0] [] stick_x // list of stick x coords
-reg [2:0] [] stick_y // list of stick y coords
+// list of bottom left corners of sticks
+reg [3:0] [] sticks_x // list of stick x coords
+reg [3:0] [] sticks_y // list of stick y coords
 
 // keep track of global stick_states passed to vga 
 
 
-module game_logic
+module game_logic () {
+
+    
+}
+
 
 module vga_example (reg [2:0] [1:0] stick_states){
         stick1

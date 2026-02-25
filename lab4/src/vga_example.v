@@ -123,17 +123,19 @@ module within_stick(
     input wire [10:0] vcount,
 
     // this is a list of the bottom-left corners of the sticks
-    input reg [2:0] [9:0] sticks_x, // list of x coords
-    input reg [2:0] [9:0] sticks_y, // list of y coords
+    input wire [2:0] [9:0] sticks_x, // list of x coords
+    input wire [2:0] [9:0] sticks_y, // list of y coords
+    input wire [4:0] NUM_STICKS,
     input wire [10:0] stick_w, // width of the stick
     input wire [10:0] stick_h, // height of the stick
     output reg [3:0] stick_number // "stick 8" is NOT in a stick
                                   // "stick 7" is the last stick
 );
     integer i;
-    stick_number <= 9;
+
     always @(*) begin
-        for (i = 0; i < NUM_STICKS; i= i+1) begin
+        stick_number = 9;
+        for (i = 0; i < NUM_STICKS; i = i+1) begin
             if ((hcount >= sticks_x[i]) && (hcount < sticks_x[i] + stick_w) &&
                 (vcount >= sticks_y[i]) && (vcount < sticks_y[i] + stick_h)) begin
                 stick_number = i; 

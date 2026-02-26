@@ -95,15 +95,26 @@ module game ( // currently our top module, previously vga_display or vga_example
     localparam integer STICK_WIDTH = 64;
     localparam integer STICK_SPACING = 32;
     localparam integer NUM_STICKS = 8;
+    wire [3:0] stick_number = 9;
 
     reg [7:0] sticks_x = {STICK_SPACING, STICK_SPACING*2 + STICK_WIDTH, STICK_SPACING*3 + STICK_WIDTH*2, 
                     STICK_SPACING*4 + STICK_WIDTH*3, STICK_SPACING*5 + STICK_WIDTH*4, 
                     STICK_SPACING*6 + STICK_WIDTH*5, STICK_SPACING*7 + STICK_WIDTH*6, 
                     STICK_SPACING*8 + STICK_WIDTH*7};
     reg [7:0] sticks_y = {TOP_EDGE - STICK_HEIGHT, TOP_EDGE - STICK_HEIGHT, TOP_EDGE - STICK_HEIGHT, TOP_EDGE - STICK_HEIGHT, TOP_EDGE - STICK_HEIGHT, TOP_EDGE - STICK_HEIGHT, TOP_EDGE - STICK_HEIGHT, TOP_EDGE - STICK_HEIGHT};
+    
+    within_stick within_stick_check(.hcount(hcount), 
+                                    .vcount(vcount), 
+                                    .sticks_x(sticks_x), 
+                                    .sticks_y(sticks_y), 
+                                    .NUM_STICKS(NUM_STICKS),
+                                    .stick_w(STICK_WIDTH), 
+                                    .stick_h(STICK_HEIGHT),
+                                    .stick_number(stick_number));
     always @(posedge clk)
     begin
-        if (within_stick(hcount, vcount, sticks_x, sticks_y, STICK_WIDTH, STICK_HEIGHT) != 0) begin
+        
+        if (stick_number != 9) begin
             {r,g,b} <= 12'hf_0_0;
         end else begin
             {r,g,b} <= 12'ha_a_a;
@@ -126,9 +137,8 @@ module within_stick(
                                   // "stick 7" is the last stick
 );
     integer i;
-
+        
     always @(*) begin
-        stick_number = 9;
         for (i = 0; i < NUM_STICKS; i = i+1) begin
             if ((hcount >= sticks_x[i]) && (hcount < sticks_x[i] + stick_w) &&
                 (vcount >= sticks_y[i]) && (vcount < sticks_y[i] + stick_h)) begin

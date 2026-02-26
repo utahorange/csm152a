@@ -107,9 +107,19 @@ module vga_example (
                     STICK_SPACING*6 + STICK_WIDTH*5, STICK_SPACING*7 + STICK_WIDTH*6, 
                     STICK_SPACING*8 + STICK_WIDTH*7};
     reg [7:0] sticks_y = {TOP_EDGE - STICK_HEIGHT, TOP_EDGE - STICK_HEIGHT, TOP_EDGE - STICK_HEIGHT, TOP_EDGE - STICK_HEIGHT, TOP_EDGE - STICK_HEIGHT, TOP_EDGE - STICK_HEIGHT, TOP_EDGE - STICK_HEIGHT, TOP_EDGE - STICK_HEIGHT};
+    
+    within_stick within_stick_check(.hcount(hcount), 
+                                    .vcount(vcount), 
+                                    .sticks_x(sticks_x), 
+                                    .sticks_y(sticks_y), 
+                                    .NUM_STICKS(NUM_STICKS),
+                                    .stick_w(STICK_WIDTH), 
+                                    .stick_h(STICK_HEIGHT),
+                                    .stick_number(stick_number));
     always @(posedge clk)
     begin
-        if (within_stick(hcount, vcount, sticks_x, sticks_y, STICK_WIDTH, STICK_HEIGHT) != 0) begin
+        
+        if (stick_number != 8) begin
             {r,g,b} <= 12'hf_0_0;
         end else begin
             {r,g,b} <= 12'ha_a_a;
@@ -132,14 +142,41 @@ module within_stick(
                                   // "stick 7" is the last stick
 );
     integer i;
-
+        
     always @(*) begin
-        stick_number = 9;
-        for (i = 0; i < NUM_STICKS; i = i+1) begin
-            if ((hcount >= sticks_x[i]) && (hcount < sticks_x[i] + stick_w) &&
-                (vcount >= sticks_y[i]) && (vcount < sticks_y[i] + stick_h)) begin
-                stick_number = i; 
-            end
+        if ((hcount >= sticks_x[0]) && (hcount < sticks_x[0] + stick_w) &&
+            (vcount >= sticks_y[0]) && (vcount < sticks_y[0] + stick_h)) begin
+                stick_number <= 0;
         end
+        else if ((hcount >= sticks_x[1]) && (hcount < sticks_x[1] + stick_w) &&
+            (vcount >= sticks_y[1]) && (vcount < sticks_y[1] + stick_h)) begin
+                stick_number <= 1;
+        end
+        else if ((hcount >= sticks_x[2]) && (hcount < sticks_x[2] + stick_w) &&
+            (vcount >= sticks_y[2]) && (vcount < sticks_y[2] + stick_h)) begin
+                stick_number <= 2;
+        end
+        else if ((hcount >= sticks_x[3]) && (hcount < sticks_x[3] + stick_w) &&
+            (vcount >= sticks_y[3]) && (vcount < sticks_y[3] + stick_h)) begin
+                stick_number <= 0;
+        end
+        else if ((hcount >= sticks_x[4]) && (hcount < sticks_x[4] + stick_w) &&
+            (vcount >= sticks_y[4]) && (vcount < sticks_y[4] + stick_h)) begin
+                stick_number <= 4;
+        end
+        else if ((hcount >= sticks_x[5]) && (hcount < sticks_x[5] + stick_w) &&
+            (vcount >= sticks_y[5]) && (vcount < sticks_y[5] + stick_h)) begin
+                stick_number <= 5;
+        end
+        else if ((hcount >= sticks_x[6]) && (hcount < sticks_x[6] + stick_w) &&
+            (vcount >= sticks_y[6]) && (vcount < sticks_y[6] + stick_h)) begin
+                stick_number <= 6;
+        end
+        else if ((hcount >= sticks_x[7]) && (hcount < sticks_x[7] + stick_w) &&
+            (vcount >= sticks_y[7]) && (vcount < sticks_y[7] + stick_h)) begin
+                stick_number <= 7;
+        end
+        else
+            stick_number <= 8;
     end
 endmodule

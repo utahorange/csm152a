@@ -114,6 +114,7 @@ module vga_example (
                     STICK_SPACING*8 + STICK_WIDTH*7};
     reg [7:0] sticks_y = {TOP_EDGE - STICK_HEIGHT, TOP_EDGE - STICK_HEIGHT, TOP_EDGE - STICK_HEIGHT, TOP_EDGE - STICK_HEIGHT, TOP_EDGE - STICK_HEIGHT, TOP_EDGE - STICK_HEIGHT, TOP_EDGE - STICK_HEIGHT, TOP_EDGE - STICK_HEIGHT};
     
+    reg [3:0] stick_number = 8; // default to "not in a stick"
     within_stick within_stick_check(.hcount(hcount), 
                                     .vcount(vcount), 
                                     .sticks_x(sticks_x), 
@@ -127,9 +128,9 @@ module vga_example (
     begin
         if (hblnk || vblnk)
             {r,g,b} <= 12'h0_0_0;   // black during blanking
-        else if (stick_number != 8)
+        else if (stick_number != 8) // within a stick
             {r,g,b} <= 12'hf_0_0;
-        else
+        else // NOT within a stick
             {r,g,b} <= 12'ha_a_a;
     end
 

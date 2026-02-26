@@ -108,13 +108,12 @@ module vga_example (
     localparam integer STICK_SPACING = 32;
     localparam integer NUM_STICKS = 8;
 
-    reg [7:0] sticks_x = {STICK_SPACING, STICK_SPACING*2 + STICK_WIDTH, STICK_SPACING*3 + STICK_WIDTH*2, 
-                    STICK_SPACING*4 + STICK_WIDTH*3, STICK_SPACING*5 + STICK_WIDTH*4, 
-                    STICK_SPACING*6 + STICK_WIDTH*5, STICK_SPACING*7 + STICK_WIDTH*6, 
-                    STICK_SPACING*8 + STICK_WIDTH*7};
-    reg [7:0] sticks_y = {TOP_EDGE - STICK_HEIGHT, TOP_EDGE - STICK_HEIGHT, TOP_EDGE - STICK_HEIGHT, TOP_EDGE - STICK_HEIGHT, TOP_EDGE - STICK_HEIGHT, TOP_EDGE - STICK_HEIGHT, TOP_EDGE - STICK_HEIGHT, TOP_EDGE - STICK_HEIGHT};
-    
-    wire [3:0] stick_number = 8; // default to "not in a stick"
+    // 8 stick positions, each 10 bits (fits 800x600). [7:0][9:0] = stick 0..7.
+    // X: 32, 128, 224, 320, 416, 512, 608, 704.  Y: 300 for all (TOP_EDGE - STICK_HEIGHT).
+    reg [7:0][9:0] sticks_x = {10'd704, 10'd608, 10'd512, 10'd416, 10'd320, 10'd224, 10'd128, 10'd32};
+    reg [7:0][9:0] sticks_y = {10'd300, 10'd300, 10'd300, 10'd300, 10'd300, 10'd300, 10'd300, 10'd300};
+
+    wire [3:0] stick_number;
     within_stick within_stick_check(.hcount(hcount), 
                                     .vcount(vcount), 
                                     .sticks_x(sticks_x), 
@@ -140,9 +139,9 @@ module within_stick(
     input wire [10:0] hcount,
     input wire [10:0] vcount,
 
-    // this is a list of the bottom-left corners of the sticks
-    input wire [2:0] [9:0] sticks_x, // list of x coords
-    input wire [2:0] [9:0] sticks_y, // list of y coords
+    // bottom-left corners of the 8 sticks, each coord 10 bits
+    input wire [7:0] [9:0] sticks_x,
+    input wire [7:0] [9:0] sticks_y,
     input wire [4:0] NUM_STICKS,
     input wire [10:0] stick_w, // width of the stick
     input wire [10:0] stick_h, // height of the stick

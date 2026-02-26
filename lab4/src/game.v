@@ -9,8 +9,8 @@
 
 module game ( // currently our top module, previously vga_display or vga_example
   input wire clk,
-  output reg vs,
-  output reg hs,
+  output wire vs,
+  output wire hs,
   output reg [3:0] r,
   output reg [3:0] g,
   output reg [3:0] b,
@@ -50,9 +50,9 @@ module game ( // currently our top module, previously vga_display or vga_example
     .CLKOUT4(),
     .CLKOUT5(),
     .CLKOUT6(),
-    .CLKFBOUT(clkfb),
+    .CLKFBOUT(clk_fb),
     .CLKFBOUTB(),
-    .CLKFBIN(clkfb),
+    .CLKFBIN(clk_fb),
     .LOCKED(locked),
     .PWRDWN(1'b0),
     .RST(1'b0)
@@ -89,7 +89,10 @@ module game ( // currently our top module, previously vga_display or vga_example
     .hblnk(hblnk),
     .pclk(pclk)
   );
-    
+
+  assign vs = vsync;
+  assign hs = hsync;
+
     localparam integer TOP_EDGE = 570;
     localparam integer STICK_HEIGHT = 270;
     localparam integer STICK_WIDTH = 64;

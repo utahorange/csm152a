@@ -17,7 +17,7 @@ module testbench;
   wire vs, hs;
   wire [3:0] r, g, b;
 
-  vga_display my_example (
+  game my_example (
     .clk(clk),
     .vs(vs),
     .hs(hs),

@@ -33,7 +33,7 @@ module game_logic () {
 }
 
 
-module vga_display (reg [2:0] [1:0] stick_states){
+module game (reg [2:0] [1:0] stick_states){
         stick1
         stick2
         stick3

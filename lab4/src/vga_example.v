@@ -114,7 +114,7 @@ module vga_example (
                     STICK_SPACING*8 + STICK_WIDTH*7};
     reg [7:0] sticks_y = {TOP_EDGE - STICK_HEIGHT, TOP_EDGE - STICK_HEIGHT, TOP_EDGE - STICK_HEIGHT, TOP_EDGE - STICK_HEIGHT, TOP_EDGE - STICK_HEIGHT, TOP_EDGE - STICK_HEIGHT, TOP_EDGE - STICK_HEIGHT, TOP_EDGE - STICK_HEIGHT};
     
-    reg [3:0] stick_number = 8; // default to "not in a stick"
+    wire [3:0] stick_number = 8; // default to "not in a stick"
     within_stick within_stick_check(.hcount(hcount), 
                                     .vcount(vcount), 
                                     .sticks_x(sticks_x), 

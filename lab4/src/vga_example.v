@@ -95,7 +95,13 @@ module vga_example (
     .hblnk(hblnk),
     .pclk(pclk)
   );
-    
+
+  // Drive sync outputs to the VGA connector (were never connected!)
+  always @(posedge pclk) begin
+    vs <= vsync;
+    hs <= hsync;
+  end
+
     localparam integer TOP_EDGE = 570;
     localparam integer STICK_HEIGHT = 270;
     localparam integer STICK_WIDTH = 64;
@@ -116,15 +122,16 @@ module vga_example (
                                     .stick_w(STICK_WIDTH), 
                                     .stick_h(STICK_HEIGHT),
                                     .stick_number(stick_number));
-    always @(posedge clk)
+    // RGB must be registered on pclk to match hcount/vcount (same domain as timing)
+    always @(posedge pclk)
     begin
-        
-        if (stick_number != 8) begin
+        if (hblnk || vblnk)
+            {r,g,b} <= 12'h0_0_0;   // black during blanking
+        else if (stick_number != 8)
             {r,g,b} <= 12'hf_0_0;
-        end else begin
+        else
             {r,g,b} <= 12'ha_a_a;
-        end
-     end
+    end
 
 endmodule
 
@@ -158,7 +165,7 @@ module within_stick(
         end
         else if ((hcount >= sticks_x[3]) && (hcount < sticks_x[3] + stick_w) &&
             (vcount >= sticks_y[3]) && (vcount < sticks_y[3] + stick_h)) begin
-                stick_number <= 0;
+                stick_number <= 3;
         end
         else if ((hcount >= sticks_x[4]) && (hcount < sticks_x[4] + stick_w) &&
             (vcount >= sticks_y[4]) && (vcount < sticks_y[4] + stick_h)) begin

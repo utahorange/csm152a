@@ -108,10 +108,10 @@ module vga_example (
     localparam integer STICK_SPACING = 32;
     localparam integer NUM_STICKS = 8;
 
-    // 8 stick positions, each 10 bits (fits 800x600). [7:0][9:0] = stick 0..7.
+    // 8 stick positions: 80 bits = 8 x 10-bit coords. stick 0 = [9:0], stick 1 = [19:10], ... stick 7 = [79:70].
     // X: 32, 128, 224, 320, 416, 512, 608, 704.  Y: 300 for all (TOP_EDGE - STICK_HEIGHT).
-    reg [7:0][9:0] sticks_x = {10'd704, 10'd608, 10'd512, 10'd416, 10'd320, 10'd224, 10'd128, 10'd32};
-    reg [7:0][9:0] sticks_y = {10'd300, 10'd300, 10'd300, 10'd300, 10'd300, 10'd300, 10'd300, 10'd300};
+    reg [79:0] sticks_x = {10'd704, 10'd608, 10'd512, 10'd416, 10'd320, 10'd224, 10'd128, 10'd32};
+    reg [79:0] sticks_y = {10'd300, 10'd300, 10'd300, 10'd300, 10'd300, 10'd300, 10'd300, 10'd300};
 
     wire [3:0] stick_number;
     within_stick within_stick_check(.hcount(hcount), 
@@ -138,51 +138,40 @@ endmodule
 module within_stick(
     input wire [10:0] hcount,
     input wire [10:0] vcount,
-
-    // bottom-left corners of the 8 sticks, each coord 10 bits
-    input wire [7:0] [9:0] sticks_x,
-    input wire [7:0] [9:0] sticks_y,
+    // 80 bits = 8 sticks x 10-bit coords. stick i at bits [10*i+9 : 10*i]
+    input wire [79:0] sticks_x,
+    input wire [79:0] sticks_y,
     input wire [4:0] NUM_STICKS,
-    input wire [10:0] stick_w, // width of the stick
-    input wire [10:0] stick_h, // height of the stick
-    output reg [3:0] stick_number // "stick 8" is NOT in a stick
-                                  // "stick 7" is the last stick
+    input wire [10:0] stick_w,
+    input wire [10:0] stick_h,
+    output reg [3:0] stick_number  // 8 = not in any stick
 );
-    integer i;
-        
+    wire [9:0] s0_x = sticks_x[ 9: 0], s0_y = sticks_y[ 9: 0];
+    wire [9:0] s1_x = sticks_x[19:10], s1_y = sticks_y[19:10];
+    wire [9:0] s2_x = sticks_x[29:20], s2_y = sticks_y[29:20];
+    wire [9:0] s3_x = sticks_x[39:30], s3_y = sticks_y[39:30];
+    wire [9:0] s4_x = sticks_x[49:40], s4_y = sticks_y[49:40];
+    wire [9:0] s5_x = sticks_x[59:50], s5_y = sticks_y[59:50];
+    wire [9:0] s6_x = sticks_x[69:60], s6_y = sticks_y[69:60];
+    wire [9:0] s7_x = sticks_x[79:70], s7_y = sticks_y[79:70];
+
     always @(*) begin
-        if ((hcount >= sticks_x[0]) && (hcount < sticks_x[0] + stick_w) &&
-            (vcount >= sticks_y[0]) && (vcount < sticks_y[0] + stick_h)) begin
-                stick_number <= 0;
-        end
-        else if ((hcount >= sticks_x[1]) && (hcount < sticks_x[1] + stick_w) &&
-            (vcount >= sticks_y[1]) && (vcount < sticks_y[1] + stick_h)) begin
-                stick_number <= 1;
-        end
-        else if ((hcount >= sticks_x[2]) && (hcount < sticks_x[2] + stick_w) &&
-            (vcount >= sticks_y[2]) && (vcount < sticks_y[2] + stick_h)) begin
-                stick_number <= 2;
-        end
-        else if ((hcount >= sticks_x[3]) && (hcount < sticks_x[3] + stick_w) &&
-            (vcount >= sticks_y[3]) && (vcount < sticks_y[3] + stick_h)) begin
-                stick_number <= 3;
-        end
-        else if ((hcount >= sticks_x[4]) && (hcount < sticks_x[4] + stick_w) &&
-            (vcount >= sticks_y[4]) && (vcount < sticks_y[4] + stick_h)) begin
-                stick_number <= 4;
-        end
-        else if ((hcount >= sticks_x[5]) && (hcount < sticks_x[5] + stick_w) &&
-            (vcount >= sticks_y[5]) && (vcount < sticks_y[5] + stick_h)) begin
-                stick_number <= 5;
-        end
-        else if ((hcount >= sticks_x[6]) && (hcount < sticks_x[6] + stick_w) &&
-            (vcount >= sticks_y[6]) && (vcount < sticks_y[6] + stick_h)) begin
-                stick_number <= 6;
-        end
-        else if ((hcount >= sticks_x[7]) && (hcount < sticks_x[7] + stick_w) &&
-            (vcount >= sticks_y[7]) && (vcount < sticks_y[7] + stick_h)) begin
-                stick_number <= 7;
-        end
+        if ((hcount >= s0_x) && (hcount < s0_x + stick_w) && (vcount >= s0_y) && (vcount < s0_y + stick_h))
+            stick_number <= 0;
+        else if ((hcount >= s1_x) && (hcount < s1_x + stick_w) && (vcount >= s1_y) && (vcount < s1_y + stick_h))
+            stick_number <= 1;
+        else if ((hcount >= s2_x) && (hcount < s2_x + stick_w) && (vcount >= s2_y) && (vcount < s2_y + stick_h))
+            stick_number <= 2;
+        else if ((hcount >= s3_x) && (hcount < s3_x + stick_w) && (vcount >= s3_y) && (vcount < s3_y + stick_h))
+            stick_number <= 3;
+        else if ((hcount >= s4_x) && (hcount < s4_x + stick_w) && (vcount >= s4_y) && (vcount < s4_y + stick_h))
+            stick_number <= 4;
+        else if ((hcount >= s5_x) && (hcount < s5_x + stick_w) && (vcount >= s5_y) && (vcount < s5_y + stick_h))
+            stick_number <= 5;
+        else if ((hcount >= s6_x) && (hcount < s6_x + stick_w) && (vcount >= s6_y) && (vcount < s6_y + stick_h))
+            stick_number <= 6;
+        else if ((hcount >= s7_x) && (hcount < s7_x + stick_w) && (vcount >= s7_y) && (vcount < s7_y + stick_h))
+            stick_number <= 7;
         else
             stick_number <= 8;
     end

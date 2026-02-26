@@ -1,11 +1,4 @@
 // File: tiff_writer.v
-// This is a testbench sub-module for the
-// tiff_writer, which is part of the EE178
-// Lab #4 assignment.
-
-// The `timescale directive specifies what the
-// simulation time units are (1 ns here) and what
-// the simulator time step should be (1 ps here).
 
 `timescale 1 ns / 1 ps
 

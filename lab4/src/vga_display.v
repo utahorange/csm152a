@@ -1,6 +1,3 @@
-// File: vga_example.v
-// This is the top level design for EE178 Lab #4.
-
 // The `timescale directive specifies what the
 // simulation time units are (1 ns here) and what
 // the simulator time step should be (1 ps here).
@@ -10,7 +7,7 @@
 // Declare the module and its ports. This is
 // using Verilog-2001 syntax.
 
-module vga_example (
+module vga_display (
   input wire clk,
   output reg vs,
   output reg hs,
@@ -78,9 +75,6 @@ module vga_example (
     .R(1'b0),
     .S(1'b0)
   );
-
-  // Instantiate the vga_timing module, which is
-  // the module you are designing for this lab.
 
   wire [10:0] vcount, hcount;
   wire vsync, hsync;

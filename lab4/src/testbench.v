@@ -1,8 +1,3 @@
-// File: testbench.v
-// This is a top level testbench for the
-// vga_example design, which is part of
-// the EE178 Lab #4 assignment.
-
 // The `timescale directive specifies what the
 // simulation time units are (1 ns here) and what
 // the simulator time step should be (1 ps here).
@@ -22,9 +17,7 @@ module testbench;
   wire vs, hs;
   wire [3:0] r, g, b;
 
-  // Instantiate the vga_example module.
-  
-  vga_example my_example (
+  vga_display my_example (
     .clk(clk),
     .vs(vs),
     .hs(hs),

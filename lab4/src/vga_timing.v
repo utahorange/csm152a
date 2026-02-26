@@ -1,6 +1,3 @@
-// File: vga_timing.v
-// This is the vga timing design for EE178 Lab #4.
-
 // The `timescale directive specifies what the
 // simulation time units are (1 ns here) and what
 // the simulator time step should be (1 ps here).

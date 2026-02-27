@@ -50,3 +50,5 @@ module within_stick(input x,y, output reg 0 if not in rectangle, some 0 < n < 9 
     loop thru stick_x and stick_y to check if x, y in any stick
     return num
 }
+
+most recent commit on new_attempt has 8 red sticks

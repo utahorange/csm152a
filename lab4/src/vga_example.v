@@ -112,6 +112,7 @@ module vga_example (
     // X: 32, 128, 224, 320, 416, 512, 608, 704.  Y: 300 for all (TOP_EDGE - STICK_HEIGHT).
     reg [79:0] sticks_x = {10'd704, 10'd608, 10'd512, 10'd416, 10'd320, 10'd224, 10'd128, 10'd32};
     reg [79:0] sticks_y = {10'd300, 10'd300, 10'd300, 10'd300, 10'd300, 10'd300, 10'd300, 10'd300};
+    
 
     wire [3:0] stick_number;
     within_stick within_stick_check(.hcount(hcount), 
@@ -175,4 +176,119 @@ module within_stick(
         else
             stick_number <= 8;
     end
+endmodule
+
+
+// GPT-Generated code for user controls and difficulty levels. This is a placeholder and should be modified based on actual button inputs and display requirements.
+
+/*
+// Parameters for user controls and difficulty levels
+  input wire left_button, // Left button signal
+  input wire right_button; // Right button signal
+
+  // Registers for difficulty level and Start screen state
+  reg [3:0] difficulty = MIN_DIFFICULTY; // Default difficulty level
+  reg start_screen = 1'b1; // Start screen active by default
+
+  // Debounced button signals
+  reg left_button_debounced;
+  reg right_button_debounced;
+
+  // Button press detection
+  always @(posedge pclk) begin
+    if (start_screen) begin
+      // Debounce logic for left button
+      left_button_debounced <= left_button;
+
+      // Debounce logic for right button
+      right_button_debounced <= right_button;
+
+      // Adjust difficulty level based on button presses
+      if (left_button_debounced && difficulty > MIN_DIFFICULTY) begin
+        difficulty <= difficulty - 1;
+      end else if (right_button_debounced && difficulty < MAX_DIFFICULTY) begin
+        difficulty <= difficulty + 1;
+      end
+    end
+  end
+
+  // Display logic for Start screen and difficulty level
+  always @(posedge pclk) begin
+    if (start_screen) begin
+      // Display Start screen and difficulty level on BCD display
+      // Placeholder logic for BCD display
+      // Add your BCD display module instantiation here
+    end
+  end
+*/
+
+module input_proc (
+    input  wire clk,          // slow clock (1kHz-10kHz ideal)
+    input  wire reset,
+    input  wire button_in,     // asynchronous, noisy input
+
+    output reg  button_level,  // debounced level
+    output reg  button_pulse,  // 1-clock pulse on rising edge
+    output reg  button_toggle  // toggles on each press
+);
+
+    // =========================
+    // Synchronizer
+    // =========================
+    reg sync_0, sync_1;
+
+    always @(posedge clk) begin
+        sync_0 <= button_in;
+        sync_1 <= sync_0;
+    end
+
+    // =========================
+    // Debouncer
+    // =========================
+    localparam integer DEBOUNCE_COUNT = 20; // ~20 ms @ 1 kHz
+    integer debounce_cnt = 0;
+    reg debounced = 0;
+
+    always @(posedge clk or posedge reset) begin
+        if (reset) begin
+            debounce_cnt <= 0;
+            debounced    <= 0;
+        end else begin
+            if (sync_1 == debounced) begin
+                debounce_cnt <= 0;
+            end else begin
+                if (debounce_cnt == DEBOUNCE_COUNT - 1) begin
+                    debounced    <= sync_1;
+                    debounce_cnt <= 0;
+                end else begin
+                    debounce_cnt <= debounce_cnt + 1;
+                end
+            end
+        end
+    end
+
+    // =========================
+    // Edge detection
+    // =========================
+    reg debounced_d;
+
+    always @(posedge clk or posedge reset) begin
+        if (reset) begin
+            debounced_d   <= 0;
+            button_pulse  <= 0;
+            button_toggle <= 0;
+            button_level  <= 0;
+        end else begin
+            debounced_d  <= debounced;
+            button_level <= debounced;
+
+            // Rising edge detect
+            button_pulse <= debounced & ~debounced_d;
+
+            // Toggle on rising edge
+            if (debounced & ~debounced_d)
+                button_toggle <= ~button_toggle;
+        end
+    end
+
 endmodule

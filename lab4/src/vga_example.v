@@ -246,6 +246,9 @@ module game_fsm(
     reg caught;                // 0->1 on correct switch during window
     reg [3:0] score;
     reg [15:0] lfsr;           // for random stick choice
+    reg [19:0] difficulty_cooldown;  // ignore extra pulses after one difficulty change (~10 ms at 40 MHz)
+
+    localparam [19:0] DIFF_COOLDOWN_CYCLES = 20'd400_000;
 
     wire all_done = (stick_states[3*0 +: 3] != 3'b000 && stick_states[3*0 +: 3] != 3'b001) &&
                     (stick_states[3*1 +: 3] != 3'b000 && stick_states[3*1 +: 3] != 3'b001) &&
@@ -269,6 +272,7 @@ module game_fsm(
         caught = 1'b0;
         score = 4'd0;
         lfsr = 16'habcd;
+        difficulty_cooldown = 20'd0;
     end
 
     always @(posedge clk) begin
@@ -289,11 +293,16 @@ module game_fsm(
                     next_state = 2'b00; // Stay in Wait state
                 end
 
-                // Difficulty 1-9 only: right = up (max 9), left = down (min 1)
-                if (right_button_pulse && difficulty_level < 4'd9)
+                // Cooldown: after changing difficulty, ignore pulses for ~10 ms (one press = one step)
+                if (difficulty_cooldown > 20'd0)
+                    difficulty_cooldown <= difficulty_cooldown - 1'b1;
+                else if (right_button_pulse && difficulty_level < 4'd9) begin
                     difficulty_level <= difficulty_level + 1;
-                else if (left_button_pulse && difficulty_level > 4'd1)
+                    difficulty_cooldown <= DIFF_COOLDOWN_CYCLES;
+                end else if (left_button_pulse && difficulty_level > 4'd1) begin
                     difficulty_level <= difficulty_level - 1;
+                    difficulty_cooldown <= DIFF_COOLDOWN_CYCLES;
+                end
             end
             2'b01: begin
                 if (timer >= ONE_SEC) begin
@@ -428,9 +437,9 @@ module input_proc (
     end
 
     // =========================
-    // Debouncer
+    // Debouncer (clock is 40 MHz pclk: 10 ms = 400_000 cycles)
     // =========================
-    localparam integer DEBOUNCE_COUNT = 20; // ~20 ms @ 1 kHz
+    localparam integer DEBOUNCE_COUNT = 400_000;
     integer debounce_cnt = 0;
     reg debounced = 0;
 

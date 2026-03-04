@@ -250,6 +250,19 @@ module game_fsm(
 
     localparam [19:0] DIFF_COOLDOWN_CYCLES = 20'd400_000;
 
+    // Synchronize slide switches to clk to avoid missing transitions (async input).
+    reg [7:0] sw_sync_0 = 8'h00;
+    reg [7:0] sw_sync_1 = 8'h00;
+    reg [7:0] sw_s      = 8'h00;
+    reg [7:0] sw_s_d    = 8'h00;  // delayed sample for edge detect
+
+    always @(posedge clk) begin
+        sw_sync_0 <= sw;
+        sw_sync_1 <= sw_sync_0;
+        sw_s      <= sw_sync_1;
+        sw_s_d    <= sw_s;
+    end
+
     wire all_done = (stick_states[3*0 +: 3] != 3'b000 && stick_states[3*0 +: 3] != 3'b001) &&
                     (stick_states[3*1 +: 3] != 3'b000 && stick_states[3*1 +: 3] != 3'b001) &&
                     (stick_states[3*2 +: 3] != 3'b000 && stick_states[3*2 +: 3] != 3'b001) &&
@@ -327,16 +340,16 @@ module game_fsm(
                 if (stick_states[current_stick*3 +: 3] == 3'b000) begin
                     // Phase A: turn yellow and require sw was 0
                     stick_states[current_stick*3 +: 3] <= 3'b001;
-                    sw_was_zero_at_start <= (sw[current_stick] == 1'b0);
+                    sw_was_zero_at_start <= (sw_s[current_stick] == 1'b0);
                     caught <= 1'b0;
                     timer <= 0;
                 end else if (stick_states[current_stick*3 +: 3] == 3'b001) begin
                     // Phase B: catch window — register 0->1 so we don't miss the cycle timer expires
-                    if (sw_was_zero_at_start && (sw[current_stick] == 1'b1))
+                    if (sw_was_zero_at_start && (sw_s[current_stick] && !sw_s_d[current_stick]))
                         caught <= 1'b1;
                     if (timer >= catch_ticks) begin
                         // Use current switch state when deciding: catch if already registered OR switch on now (and was off at start)
-                        if (caught || (sw_was_zero_at_start && (sw[current_stick] == 1'b1))) begin
+                        if (caught || (sw_was_zero_at_start && (sw_s[current_stick] == 1'b1))) begin
                             stick_states[current_stick*3 +: 3] <= 3'b010;
                             score <= score + 1;
                         end else

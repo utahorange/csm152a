@@ -20,14 +20,15 @@ module vga_example (
   output wire pclk_mirror,
 
   input wire btnMiddle,
-    input wire btnUp,
-    input wire btnDown,
-    input wire btnLeft,
-    input wire btnRight,
-    input wire [7:0] sw,
+  input wire btnUp,
+  input wire btnDown,
+  input wire btnLeft,
+  input wire btnRight,
+  input wire btnCenter,
+  input wire [7:0] sw,
 
-  output reg [7:0] seg,
-  output reg [3:0] an
+  output wire [6:0] seg,
+  output wire [3:0] an
 
   );
 
@@ -124,7 +125,6 @@ module vga_example (
     reg [79:0] sticks_x = {10'd704, 10'd608, 10'd512, 10'd416, 10'd320, 10'd224, 10'd128, 10'd32};
     reg [79:0] sticks_y = {10'd300, 10'd300, 10'd300, 10'd300, 10'd300, 10'd300, 10'd300, 10'd300};
     
-
     wire [3:0] stick_number;
     within_stick within_stick_check(.hcount(hcount), 
                                     .vcount(vcount), 
@@ -133,7 +133,9 @@ module vga_example (
                                     .NUM_STICKS(NUM_STICKS),
                                     .stick_w(STICK_WIDTH), 
                                     .stick_h(STICK_HEIGHT),
-                                    .stick_number(stick_number));
+                                    .stick_number(stick_number)); 
+        // output is stick_number, 0-7 for within a stick, 8 for not within any stick
+    
     // RGB must be registered on pclk to match hcount/vcount (same domain as timing)
     always @(posedge pclk)
     begin
@@ -144,6 +146,54 @@ module vga_example (
         else // NOT within a stick
             {r,g,b} <= 12'ha_a_a;
     end
+
+
+    // wire the input processor module to the buttons and switches
+    // then connect the outputs to the game FSM module, which will determine 
+    // the game state and difficulty level based on the button presses and stick states
+    wire btnRight_pulse, btnLeft_pulse, btnUp_pulse, btnDown_pulse, btnCenter_pulse;
+    wire btnRight_level, btnLeft_level, btnUp_level, btnDown_level, btnCenter_level;
+    wire btnRight_toggle, btnLeft_toggle, btnUp_toggle, btnDown_toggle, btnCenter_toggle;
+
+    input_proc btnRight_input(.clk(pclk), .reset(btnRight), .button_in(btnRight), 
+        .button_level(btnRight_level), .button_pulse(btnRight_pulse), .button_toggle(btnRight_toggle));
+
+    input_proc btnLeft_input(.clk(pclk), .reset(btnLeft), .button_in(btnLeft), 
+        .button_level(btnLeft_level), .button_pulse(btnLeft_pulse), .button_toggle(btnLeft_toggle));
+
+    input_proc btnUp_input(.clk(pclk), .reset(btnUp), .button_in(btnUp), 
+        .button_level(btnUp_level), .button_pulse(btnUp_pulse), .button_toggle(btnUp_toggle));
+
+    input_proc btnDown_input(.clk(pclk), .reset(btnDown), .button_in(btnDown), 
+        .button_level(btnDown_level), .button_pulse(btnDown_pulse), .button_toggle(btnDown_toggle));
+
+    input_proc btnCenter_input(.clk(pclk), .reset(btnCenter), .button_in(btnCenter), 
+        .button_level(btnCenter_level), .button_pulse(btnCenter_pulse), .button_toggle(btnCenter_toggle));
+
+    // we want to use btn[location]_level as our input signals from the buttons
+    reg [23:0] stick_states; // 3 bits per stick, 8 sticks total. 000 = white, 001 = yellow, 010 = green, 011 = red, 100 = gray (disappears into background)
+    reg [1:0] game_state; // 00 = WAIT (haven't started game), 01 = START (countdown), 10 = DROPPING (in game), 11 = GAME_OVER (game finished)
+    reg [3:0] difficulty_level;
+    reg game_finished;
+
+    initial begin 
+        stick_states = 24'h0; // Initialize all stick states to white
+        game_state = 2'b00; // Initialize game state to WAIT
+        difficulty_level = 4'b0000; // Initialize difficulty level to 0
+        game_finished = 1'b0; // Initialize game finished signal to 0
+    end
+
+    game_fsm my_game_fsm(
+        .clk(pclk),
+        .start_button(btnCenter_level), // use center button to start the game
+        .right_button(btnRight_level), // use right button to increase difficulty level
+        .left_button(btnLeft_level), // use left button to decrease difficulty level
+        .stick_states(stick_states), // pass the stick states to the game FSM
+        .seg(seg), 
+        .an(an)
+    );
+
+
 
 endmodule
 
@@ -159,7 +209,7 @@ module game_fsm(
         // each 3 bits are defined as: 000 = white, 001 = yellow, 010 = green, 
         // 011 = red, 100 = gray (disappears into background)
     
-    output reg [7:0] seg, // BCD display output
+    output reg [6:0] seg, // BCD display output
     output reg [3:0] an,   // Anode control for 4-digit 7-segment display
     output reg [1:0] game_state,  // 00 = Wait (haven't started game), 
                             // 01 = Start (countdown), 
@@ -177,7 +227,7 @@ module game_fsm(
     end
 
     // Next state logic
-    always @(*) begin
+    always @(posedge clk) begin
         case (game_state)
             2'b00: begin
                 if (start_button) begin
@@ -258,7 +308,6 @@ module game_fsm(
                 an <= 4'b1110; // Enable first digit for difficulty level display
             end
             default: begin
-                seg <= 7'b1111111; // Default display output
                 an <= 4'b1111; // Default anode control
             end
         endcase
@@ -281,53 +330,7 @@ module game_fsm(
         endcase
     end
 
-
-
 endmodule
-
-
-// GPT-Generated code for user controls and difficulty levels. This is a placeholder and should be modified based on actual button inputs and display requirements.
-
-/*
-// Parameters for user controls and difficulty levels
-  input wire left_button, // Left button signal
-  input wire right_button; // Right button signal
-
-  // Registers for difficulty level and Start screen state
-  reg [3:0] difficulty = MIN_DIFFICULTY; // Default difficulty level
-  reg start_screen = 1'b1; // Start screen active by default
-
-  // Debounced button signals
-  reg left_button_debounced;
-  reg right_button_debounced;
-
-  // Button press detection
-  always @(posedge pclk) begin
-    if (start_screen) begin
-      // Debounce logic for left button
-      left_button_debounced <= left_button;
-
-      // Debounce logic for right button
-      right_button_debounced <= right_button;
-
-      // Adjust difficulty level based on button presses
-      if (left_button_debounced && difficulty > MIN_DIFFICULTY) begin
-        difficulty <= difficulty - 1;
-      end else if (right_button_debounced && difficulty < MAX_DIFFICULTY) begin
-        difficulty <= difficulty + 1;
-      end
-    end
-  end
-
-  // Display logic for Start screen and difficulty level
-  always @(posedge pclk) begin
-    if (start_screen) begin
-      // Display Start screen and difficulty level on BCD display
-      // Placeholder logic for BCD display
-      // Add your BCD display module instantiation here
-    end
-  end
-*/
 
 module input_proc (
     input  wire clk,          // slow clock (1kHz-10kHz ideal)

@@ -142,21 +142,39 @@ module vga_example (
                                     .stick_number(stick_number)); 
         // output is stick_number, 0-7 for within a stick, 8 for not within any stick
     
-    // RGB must be registered on pclk to match hcount/vcount (same domain as timing)
-    always @(posedge pclk)
-    begin
-        if (hblnk || vblnk)
-            {r,g,b} <= 12'h0_0_0;   // black during blanking
-        else if (stick_number != 8) // within a stick
-            {r,g,b} <= 12'hf_0_0;
-        else // NOT within a stick
-            {r,g,b} <= 12'ha_a_a;
-    end
+    // Wire game_fsm outputs (stick_states, game_state, etc.) for VGA and display
+    wire [23:0] stick_states;
+    wire [1:0] game_state;
+    wire [3:0] difficulty_level;
+    wire game_finished;
 
+    // RGB: blanking = black; start screen = dim background; sticks = color by state; gaps = black
+    reg [3:0] r_next, g_next, b_next;
+    always @(*) begin
+        if (hblnk || vblnk) begin
+            r_next = 4'h0; g_next = 4'h0; b_next = 4'h0;
+        end else if (game_state == 2'b00) begin
+            // Start screen: simple colored background (e.g. dark blue) when in WAIT
+            r_next = 4'h1; g_next = 4'h2; b_next = 4'h4;
+        end else if (game_state == 2'b11) begin
+            // Game over: dim background
+            r_next = 4'h2; g_next = 4'h2; b_next = 4'h2;
+        end else if (stick_number != 4'd8) begin
+            // Within a stick: color by stick state (000=white, 001=yellow, 010=green, 011=red)
+            case (stick_states[stick_number*3 +: 3])
+                3'b000: begin r_next = 4'hf; g_next = 4'hf; b_next = 4'hf; end  // white
+                3'b001: begin r_next = 4'hf; g_next = 4'hf; b_next = 4'h0; end  // yellow
+                3'b010: begin r_next = 4'h0; g_next = 4'hf; b_next = 4'h0; end  // green
+                3'b011: begin r_next = 4'hf; g_next = 4'h0; b_next = 4'h0; end  // red
+                default: begin r_next = 4'ha; g_next = 4'ha; b_next = 4'ha; end
+            endcase
+        end else begin
+            r_next = 4'h0; g_next = 4'h0; b_next = 4'h0;  // black between sticks
+        end
+    end
+    always @(posedge pclk) {r,g,b} <= {r_next, g_next, b_next};
 
     // wire the input processor module to the buttons and switches
-    // then connect the outputs to the game FSM module, which will determine 
-    // the game state and difficulty level based on the button presses and stick states
     wire btnRight_pulse, btnLeft_pulse, btnUp_pulse, btnDown_pulse, btnCenter_pulse;
     wire btnRight_level, btnLeft_level, btnUp_level, btnDown_level, btnCenter_level;
     wire btnRight_toggle, btnLeft_toggle, btnUp_toggle, btnDown_toggle, btnCenter_toggle;
@@ -176,26 +194,17 @@ module vga_example (
     input_proc btnCenter_input(.clk(pclk), .reset(1'b0), .button_in(btnCenter), 
         .button_level(btnCenter_level), .button_pulse(btnCenter_pulse), .button_toggle(btnCenter_toggle));
 
-    // we want to use btn[location]_level as our input signals from the buttons
-    reg [23:0] stick_states; // 3 bits per stick, 8 sticks total. 000 = white, 001 = yellow, 010 = green, 011 = red, 100 = gray (disappears into background)
-    reg [1:0] game_state; // 00 = WAIT (haven't started game), 01 = START (countdown), 10 = DROPPING (in game), 11 = GAME_OVER (game finished)
-    reg [3:0] difficulty_level;
-    reg game_finished;
-
-    initial begin 
-        stick_states = 24'h0; // Initialize all stick states to white
-        game_state = 2'b00; // Initialize game state to WAIT
-        difficulty_level = 4'b0000; // Initialize difficulty level to 0
-        game_finished = 1'b0; // Initialize game finished signal to 0
-    end
-
     game_fsm my_game_fsm(
         .clk(pclk),
-        .start_button(btnCenter_level), // use center button to start the game
-        .right_button(btnRight_level), // use right button to increase difficulty level
-        .left_button(btnLeft_level), // use left button to decrease difficulty level
-        .stick_states(stick_states), // pass the stick states to the game FSM
-        .seg(seg), 
+        .start_button(btnCenter_level),
+        .right_button_pulse(btnRight_pulse),
+        .left_button_pulse(btnLeft_pulse),
+        .sw(sw),
+        .stick_states(stick_states),
+        .game_state(game_state),
+        .difficulty_level(difficulty_level),
+        .game_finished(game_finished),
+        .seg(seg),
         .an(an)
     );
 
@@ -206,36 +215,80 @@ endmodule
 
 module game_fsm(
     input wire clk,
-    input wire start_button, // input signal from U18 button
-    input wire right_button, // input signal from T17 button
-    input wire left_button, // input signal from W19 button
-    input wire [23:0] stick_states, // 3 bits per stick (8 of them)
-        // format: first three bits define stick 0's state
-        //      next three bits define stick 1's state, and so on
-        // each 3 bits are defined as: 000 = white, 001 = yellow, 010 = green, 
-        // 011 = red, 100 = gray (disappears into background)
-    
-    output reg [6:0] seg, // BCD display output
-    output reg [3:0] an,   // Anode control for 4-digit 7-segment display
-    output reg [1:0] game_state,  // 00 = Wait (haven't started game), 
-                            // 01 = Start (countdown), 
-                            // 10 = Dropping (in game),
-                            // 11 = Game over (game finished)
+    input wire start_button,
+    input wire right_button_pulse,
+    input wire left_button_pulse,
+    input wire [7:0] sw,
+
+    output reg [23:0] stick_states,  // 3 bits per stick: 000=white, 001=yellow, 010=green, 011=red
+    output reg [1:0] game_state,     // 00=Wait, 01=Countdown, 10=Dropping, 11=GameOver
     output reg [3:0] difficulty_level,
-    output reg [1:0] game_finished
+    output reg game_finished,
+
+    output reg [6:0] seg,
+    output reg [3:0] an
 );
 
-    reg [1:0] next_state;
+    // --- Timers: 40 MHz -> 1 sec = 40_000_000 cycles; 1 ms = 40_000 cycles ---
+    localparam [31:0] ONE_SEC = 32'd40_000_000;
+    localparam [31:0] ONE_MS  = 32'd40_000;
+    localparam [31:0] RESULT_WAIT = 32'd80_000_000;  // 2 sec between sticks
 
-    // State transition logic
-    always @(posedge clk) begin
-        game_state <= next_state;
+    // Catch window: inversely proportional to difficulty. e.g. 2000ms at diff 0 down to ~500ms at diff 15
+    // time_ms = 2000 - difficulty*100 (min 500)
+    wire [31:0] catch_time_ms = (difficulty_level >= 4'd15) ? 32'd500 :
+                                 (32'd2000 - {28'd0, difficulty_level} * 32'd100);
+    wire [31:0] catch_ticks = catch_time_ms * ONE_MS;
+
+    reg [1:0] next_state;
+    reg [31:0] timer;
+    reg [1:0] countdown_val;   // 3, 2, 1
+    reg [2:0] current_stick;   // which stick is yellow (0..7)
+    reg sw_was_zero_at_start;  // required: switch was 0 when stick turned yellow
+    reg caught;                // 0->1 on correct switch during window
+    reg [3:0] score;
+    reg [15:0] lfsr;           // for random stick choice
+
+    wire all_done = (stick_states[3*0 +: 3] != 3'b000 && stick_states[3*0 +: 3] != 3'b001) &&
+                    (stick_states[3*1 +: 3] != 3'b000 && stick_states[3*1 +: 3] != 3'b001) &&
+                    (stick_states[3*2 +: 3] != 3'b000 && stick_states[3*2 +: 3] != 3'b001) &&
+                    (stick_states[3*3 +: 3] != 3'b000 && stick_states[3*3 +: 3] != 3'b001) &&
+                    (stick_states[3*4 +: 3] != 3'b000 && stick_states[3*4 +: 3] != 3'b001) &&
+                    (stick_states[3*5 +: 3] != 3'b000 && stick_states[3*5 +: 3] != 3'b001) &&
+                    (stick_states[3*6 +: 3] != 3'b000 && stick_states[3*6 +: 3] != 3'b001) &&
+                    (stick_states[3*7 +: 3] != 3'b000 && stick_states[3*7 +: 3] != 3'b001);
+
+    initial begin
+        game_state = 2'b00;
+        next_state = 2'b00;
+        difficulty_level = 4'b0000;
+        game_finished = 1'b0;
+        stick_states = 24'h0;
+        countdown_val = 2'd3;
+        timer = 0;
+        current_stick = 0;
+        sw_was_zero_at_start = 1'b0;
+        caught = 1'b0;
+        score = 4'd0;
+        lfsr = 16'habcd;
     end
 
-    // Next state logic
+    always @(posedge clk) begin
+        game_state <= next_state;
+        game_finished <= all_done;
+
+        // LFSR advance during countdown and dropping for randomness
+        if (game_state == 2'b01 || game_state == 2'b10)
+            lfsr <= { lfsr[14:0], lfsr[15] ^ lfsr[13] ^ lfsr[12] ^ lfsr[10] };
+    end
+
     always @(posedge clk) begin
         case (game_state)
             2'b00: begin
+                if (right_button_pulse && difficulty_level < 4'd15)
+                    difficulty_level <= difficulty_level + 1;
+                else if (left_button_pulse && difficulty_level > 4'd0)
+                    difficulty_level <= difficulty_level - 1;
                 if (start_button) begin
                     next_state = 2'b01; // Transition to Start state on button press
                 end else begin
@@ -251,75 +304,99 @@ module game_fsm(
 
             end
             2'b01: begin
-                // Add game logic to determine when to transition to GAME_OVER
-                next_state = 2'b10; // Placeholder, replace with actual condition
+                if (timer >= ONE_SEC) begin
+                    timer <= 0;
+                    if (countdown_val == 2'd1) begin
+                        next_state <= 2'b10;
+                        timer <= 0;
+                        // pick first random white stick (use LFSR % 8 as start index)
+                        current_stick <= lfsr[2:0];
+                    end else
+                        countdown_val <= countdown_val - 1;
+                end else
+                    timer <= timer + 1;
             end
+
             2'b10: begin
-                // Add game logic to determine when to transition to GAME_OVER
-                game_finished = 1; // assume all sticks are red or green
-                // if ALL sticks are red OR green, then go to the 2'b11
-                    // walk through all the sticks to determine if they're ALL red or green
-                // this is a flag called "game_finished"
-                    // walk through all the stick states; if any are yellow or white, set it to false
-                
-                
-                if (stick_states[3*0 +: 3] == 3'b000 || stick_states[3*0 +: 3] == 3'b001) begin
-                    game_finished = 0;
-                end
-                if (stick_states[3*1 +: 3] == 3'b000 || stick_states[3*1 +: 3] == 3'b001) begin
-                    game_finished = 0;
-                end
-                if (stick_states[3*2 +: 3] == 3'b000 || stick_states[3*2 +: 3] == 3'b001) begin
-                    game_finished = 0;
-                end
-                if (stick_states[3*3 +: 3] == 3'b000 || stick_states[3*3 +: 3] == 3'b001) begin
-                    game_finished = 0;
-                end
-                if (stick_states[3*4 +: 3] == 3'b000 || stick_states[3*4 +: 3] == 3'b001) begin
-                    game_finished = 0;
-                end
-                if (stick_states[3*5 +: 3] == 3'b000 || stick_states[3*5 +: 3] == 3'b001) begin
-                    game_finished = 0;
-                end
-                if (stick_states[3*6 +: 3] == 3'b000 || stick_states[3*6 +: 3] == 3'b001) begin
-                    game_finished = 0;
-                end
-                if (stick_states[3*7 +: 3] == 3'b000 || stick_states[3*7 +: 3] == 3'b001) begin
-                    game_finished = 0;
-                end
-                
+                // Sub-phases: we use timer and stick_states to know phase.
+                // Phase A: current stick is still white -> set it yellow, require sw==0, start catch timer
+                // Phase B: stick is yellow, run catch timer; detect 0->1 on sw[current_stick]; when timer expires set green/red
+                // Phase C: stick is green/red, run result wait timer; when done, pick next or go game over
 
-
-                if (game_finished) begin
-                    next_state = 2'b11; // Transition to Game Over state if all sticks are red or green
+                if (stick_states[current_stick*3 +: 3] == 3'b000) begin
+                    // Phase A: turn yellow and require sw was 0
+                    stick_states[current_stick*3 +: 3] <= 3'b001;
+                    sw_was_zero_at_start <= (sw[current_stick] == 1'b0);
+                    caught <= 1'b0;
+                    timer <= 0;
+                end else if (stick_states[current_stick*3 +: 3] == 3'b001) begin
+                    // Phase B: catch window
+                    if (sw_was_zero_at_start && (sw[current_stick] == 1'b1))
+                        caught <= 1'b1;
+                    if (timer >= catch_ticks) begin
+                        if (caught)
+                            stick_states[current_stick*3 +: 3] <= 3'b010;
+                        else
+                            stick_states[current_stick*3 +: 3] <= 3'b011;
+                        if (caught)
+                            score <= score + 1;
+                        timer <= 0;
+                    end else
+                        timer <= timer + 1;
                 end else begin
-                    next_state = 2'b10; // Stay in Dropping state
+                    // Phase C: show result, wait RESULT_WAIT then next stick or game over
+                    if (timer >= RESULT_WAIT) begin
+                        timer <= 0;
+                        if (all_done)
+                            next_state <= 2'b11;
+                        else begin
+                            // Pick next white stick using LFSR: first white in order (lfsr, lfsr+1, ..., lfsr+7) mod 8
+                            case (1'b1)
+                                (stick_states[(lfsr[2:0]     )*3 +: 3] == 3'b000): current_stick <= lfsr[2:0];
+                                (stick_states[(lfsr[2:0]+3'd1)*3 +: 3] == 3'b000): current_stick <= lfsr[2:0]+3'd1;
+                                (stick_states[(lfsr[2:0]+3'd2)*3 +: 3] == 3'b000): current_stick <= lfsr[2:0]+3'd2;
+                                (stick_states[(lfsr[2:0]+3'd3)*3 +: 3] == 3'b000): current_stick <= lfsr[2:0]+3'd3;
+                                (stick_states[(lfsr[2:0]+3'd4)*3 +: 3] == 3'b000): current_stick <= lfsr[2:0]+3'd4;
+                                (stick_states[(lfsr[2:0]+3'd5)*3 +: 3] == 3'b000): current_stick <= lfsr[2:0]+3'd5;
+                                (stick_states[(lfsr[2:0]+3'd6)*3 +: 3] == 3'b000): current_stick <= lfsr[2:0]+3'd6;
+                                (stick_states[(lfsr[2:0]+3'd7)*3 +: 3] == 3'b000): current_stick <= lfsr[2:0]+3'd7;
+                                default: current_stick <= lfsr[2:0];  // fallback (should not happen if !all_done)
+                            endcase
+                        end
+                    end else
+                        timer <= timer + 1;
                 end
-
             end
+
             2'b11: begin
-                // Add logic to reset the game or return to START_SCREEN
-                
-                next_state = 2'b00; // Placeholder, replace with actual condition
+                if (start_button) begin
+                    next_state <= 2'b00;
+                    stick_states <= 24'h0;
+                end else
+                    next_state <= 2'b11;
             end
-            default: next_state = 2'b00; // Default to Wait state
+            default: next_state <= 2'b00;
         endcase
     end
 
-    // Output logic based on current state and difficulty level
+    // BCD display: WAIT -> difficulty; COUNTDOWN -> 3,2,1; DROPPING -> (optional) score; GAME_OVER -> score
+    reg [3:0] bcd_val;
+    always @(*) begin
+        if (game_state == 2'b00)
+            bcd_val = difficulty_level;
+        else if (game_state == 2'b01)
+            bcd_val = {2'd0, countdown_val};
+        else if (game_state == 2'b11)
+            bcd_val = score;
+        else
+            bcd_val = score;
+    end
+
     always @(posedge clk) begin
-        case (game_state)
-            2'b00: begin
-                // Display start screen and difficulty level on BCD display
-                an <= 4'b1110; // Enable first digit for difficulty level display
-            end
-            default: begin
-                an <= 4'b1111; // Default anode control
-            end
-        endcase
+        an <= 4'b1110;  // rightmost digit only for simplicity
     end
 
-    // Segment Decoder (Active Low for Basys3)
+    // Segment decoder (active low)
     always @(*) begin
         case(difficulty_level)
             4'd0: seg <= 7'b1000000; // Display 0

@@ -161,19 +161,19 @@ module vga_example (
     wire btnRight_level, btnLeft_level, btnUp_level, btnDown_level, btnCenter_level;
     wire btnRight_toggle, btnLeft_toggle, btnUp_toggle, btnDown_toggle, btnCenter_toggle;
 
-    input_proc btnRight_input(.clk(pclk), .reset(btnRight), .button_in(btnRight), 
+    input_proc btnRight_input(.clk(pclk), .reset(1'b0), .button_in(btnRight), 
         .button_level(btnRight_level), .button_pulse(btnRight_pulse), .button_toggle(btnRight_toggle));
 
-    input_proc btnLeft_input(.clk(pclk), .reset(btnLeft), .button_in(btnLeft), 
+    input_proc btnLeft_input(.clk(pclk), .reset(1'b0), .button_in(btnLeft), 
         .button_level(btnLeft_level), .button_pulse(btnLeft_pulse), .button_toggle(btnLeft_toggle));
 
-    input_proc btnUp_input(.clk(pclk), .reset(btnUp), .button_in(btnUp), 
+    input_proc btnUp_input(.clk(pclk), .reset(1'b0), .button_in(btnUp), 
         .button_level(btnUp_level), .button_pulse(btnUp_pulse), .button_toggle(btnUp_toggle));
 
-    input_proc btnDown_input(.clk(pclk), .reset(btnDown), .button_in(btnDown), 
+    input_proc btnDown_input(.clk(pclk), .reset(1'b0), .button_in(btnDown), 
         .button_level(btnDown_level), .button_pulse(btnDown_pulse), .button_toggle(btnDown_toggle));
 
-    input_proc btnCenter_input(.clk(pclk), .reset(btnCenter), .button_in(btnCenter), 
+    input_proc btnCenter_input(.clk(pclk), .reset(1'b0), .button_in(btnCenter), 
         .button_level(btnCenter_level), .button_pulse(btnCenter_pulse), .button_toggle(btnCenter_toggle));
 
     // we want to use btn[location]_level as our input signals from the buttons

@@ -234,10 +234,8 @@ module game_fsm(
     localparam [31:0] ONE_MS  = 32'd40_000;
     localparam [31:0] RESULT_WAIT = 32'd80_000_000;  // 2 sec between sticks
 
-    // Catch window: inversely proportional to difficulty. e.g. 2000ms at diff 0 down to ~500ms at diff 15
-    // time_ms = 2000 - difficulty*100 (min 500)
-    wire [31:0] catch_time_ms = (difficulty_level >= 4'd15) ? 32'd500 :
-                                 (32'd2000 - {28'd0, difficulty_level} * 32'd100);
+    // Catch window: inversely proportional to difficulty. 1-9: 2000 - level*100 ms (min 1100 at level 9)
+    wire [31:0] catch_time_ms = 32'd2000 - {28'd0, difficulty_level} * 32'd100;
     wire [31:0] catch_ticks = catch_time_ms * ONE_MS;
 
     reg [1:0] next_state;
@@ -261,7 +259,7 @@ module game_fsm(
     initial begin
         game_state = 2'b00;
         next_state = 2'b00;
-        difficulty_level = 4'b0000;
+        difficulty_level = 4'd1;
         game_finished = 1'b0;
         stick_states = 24'h0;
         countdown_val = 2'd3;
@@ -285,23 +283,17 @@ module game_fsm(
     always @(posedge clk) begin
         case (game_state)
             2'b00: begin
-                if (right_button_pulse && difficulty_level < 4'd15)
-                    difficulty_level <= difficulty_level + 1;
-                else if (left_button_pulse && difficulty_level > 4'd0)
-                    difficulty_level <= difficulty_level - 1;
                 if (start_button) begin
                     next_state = 2'b01; // Transition to Start state on button press
                 end else begin
                     next_state = 2'b00; // Stay in Wait state
                 end
 
-                // change the difficulty_level based on right and left button presses
-                if (right_button_pulse && difficulty_level < 4'd9) begin
-                    difficulty_level <= difficulty_level + 1; // Increase difficulty level
-                end else if (left_button_pulse && difficulty_level > 4'd0) begin
-                    difficulty_level <= difficulty_level - 1; // Decrease difficulty level
-                end
-
+                // Difficulty 1-9 only: right = up (max 9), left = down (min 1)
+                if (right_button_pulse && difficulty_level < 4'd9)
+                    difficulty_level <= difficulty_level + 1;
+                else if (left_button_pulse && difficulty_level > 4'd1)
+                    difficulty_level <= difficulty_level - 1;
             end
             2'b01: begin
                 if (timer >= ONE_SEC) begin

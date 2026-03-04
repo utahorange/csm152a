@@ -125,11 +125,14 @@ module vga_example (
     reg [79:0] sticks_x = {10'd704, 10'd608, 10'd512, 10'd416, 10'd320, 10'd224, 10'd128, 10'd32};
 
     localparam [9:0] STICK_Y_VALUE = 80;
+    localparam [9:0] MAX_STICK_Y = 330;   // 480 - STICK_HEIGHT, keep on screen
+    localparam [31:0] FALL_DIVIDER = 32'd40_000;  // ~1 ms at 40 MHz -> 1 pixel/ms fall rate
 
     reg [79:0] sticks_y = {
         STICK_Y_VALUE, STICK_Y_VALUE, STICK_Y_VALUE, STICK_Y_VALUE,
         STICK_Y_VALUE, STICK_Y_VALUE, STICK_Y_VALUE, STICK_Y_VALUE
     };
+    reg [31:0] fall_counter = 0;
 
     wire [3:0] stick_number;
     within_stick within_stick_check(.hcount(hcount), 
@@ -208,7 +211,30 @@ module vga_example (
         .an(an)
     );
 
+    // Fall tick: advance every FALL_DIVIDER cycles when not in Wait
+    wire fall_tick = (fall_counter == FALL_DIVIDER - 1);
 
+    // Next Y for each stick: if yellow and not at max, increment; else keep current
+    wire [9:0] next_y0 = (stick_states[2:0] == 3'b001 && sticks_y[ 9: 0] < MAX_STICK_Y) ? sticks_y[ 9: 0] + 1 : sticks_y[ 9: 0];
+    wire [9:0] next_y1 = (stick_states[5:3] == 3'b001 && sticks_y[19:10] < MAX_STICK_Y) ? sticks_y[19:10] + 1 : sticks_y[19:10];
+    wire [9:0] next_y2 = (stick_states[8:6] == 3'b001 && sticks_y[29:20] < MAX_STICK_Y) ? sticks_y[29:20] + 1 : sticks_y[29:20];
+    wire [9:0] next_y3 = (stick_states[11:9] == 3'b001 && sticks_y[39:30] < MAX_STICK_Y) ? sticks_y[39:30] + 1 : sticks_y[39:30];
+    wire [9:0] next_y4 = (stick_states[14:12] == 3'b001 && sticks_y[49:40] < MAX_STICK_Y) ? sticks_y[49:40] + 1 : sticks_y[49:40];
+    wire [9:0] next_y5 = (stick_states[17:15] == 3'b001 && sticks_y[59:50] < MAX_STICK_Y) ? sticks_y[59:50] + 1 : sticks_y[59:50];
+    wire [9:0] next_y6 = (stick_states[20:18] == 3'b001 && sticks_y[69:60] < MAX_STICK_Y) ? sticks_y[69:60] + 1 : sticks_y[69:60];
+    wire [9:0] next_y7 = (stick_states[23:21] == 3'b001 && sticks_y[79:70] < MAX_STICK_Y) ? sticks_y[79:70] + 1 : sticks_y[79:70];
+
+    always @(posedge pclk) begin
+        if (game_state == 2'b00) begin
+            sticks_y <= {8{STICK_Y_VALUE}};
+            fall_counter <= 0;
+        end else if (fall_tick) begin
+            sticks_y <= {next_y7, next_y6, next_y5, next_y4, next_y3, next_y2, next_y1, next_y0};
+            fall_counter <= 0;
+        end else begin
+            fall_counter <= fall_counter + 1;
+        end
+    end
 
 endmodule
 

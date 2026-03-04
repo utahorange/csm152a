@@ -421,23 +421,61 @@ module game_fsm(
         endcase
     end
 
-    // BCD display: WAIT -> difficulty; COUNTDOWN -> 3,2,1; DROPPING -> (optional) score; GAME_OVER -> score
-    reg [3:0] bcd_val;
+    // Countdown logic
+    reg [1:0] countdown = 2'b11; // 3, 2, 1 countdown
+    reg countdown_active = 0;
+    reg [31:0] one_second_timer = 0; // Timer for 1-second intervals
+
+    always @(posedge clk) begin
+        if (start_button && !countdown_active) begin
+            countdown <= 2'b11; // Start countdown at 3
+            countdown_active <= 1;
+            one_second_timer <= 0;
+        end
+
+        if (countdown_active) begin
+            one_second_timer <= one_second_timer + 1;
+            if (one_second_timer == 100_000_000) begin // Assuming 100 MHz clock, 1 second
+                one_second_timer <= 0;
+                if (countdown > 0)
+                    countdown <= countdown - 1;
+                else
+                    countdown_active <= 0; // Stop countdown
+            end
+        end
+    end
+
+    // Update BCD display during countdown
     always @(*) begin
-        if (game_state == 2'b00)
-            bcd_val = difficulty_level;
-        else if (game_state == 2'b01)
-            bcd_val = {2'd0, countdown_val};
-        else if (game_state == 2'b11)
-            bcd_val = score;
-        else
-            bcd_val = score;
+        if (countdown_active) begin
+            case (countdown)
+                2'b11: seg <= 7'b0110000; // Display 3
+                2'b10: seg <= 7'b0100100; // Display 2
+                2'b01: seg <= 7'b1111001; // Display 1
+                default: seg <= 7'b1111111; // Blank display
+            endcase
+        end else begin
+            case (difficulty_level)
+                4'd0: seg <= 7'b1000000; // Display 0
+                4'd1: seg <= 7'b1111001; // Display 1
+                4'd2: seg <= 7'b0100100; // Display 2
+                4'd3: seg <= 7'b0110000; // Display 3
+                4'd4: seg <= 7'b0011001; // Display 4
+                4'd5: seg <= 7'b0010010; // Display 5
+                4'd6: seg <= 7'b0000010; // Display 6
+                4'd7: seg <= 7'b1111000; // Display 7
+                4'd8: seg <= 7'b0000000; // Display 8
+                4'd9: seg <= 7'b0010000; // Display 9
+                default: seg <= 7'b1111111; // Blank display
+            endcase
+        end
     end
 
     always @(posedge clk) begin
         an <= 4'b1110;  // rightmost digit only for simplicity
     end
 
+/*
     // Segment decoder (active low)
     always @(*) begin
         case(difficulty_level)
@@ -454,6 +492,7 @@ module game_fsm(
             default: seg <= 7'b1111111; // Blank display
         endcase
     end
+    */
 
 endmodule
 

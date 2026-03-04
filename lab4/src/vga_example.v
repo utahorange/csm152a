@@ -330,16 +330,16 @@ module game_fsm(
                     caught <= 1'b0;
                     timer <= 0;
                 end else if (stick_states[current_stick*3 +: 3] == 3'b001) begin
-                    // Phase B: catch window
+                    // Phase B: catch window — register 0->1 so we don't miss the cycle timer expires
                     if (sw_was_zero_at_start && (sw[current_stick] == 1'b1))
                         caught <= 1'b1;
                     if (timer >= catch_ticks) begin
-                        if (caught)
+                        // Use current switch state when deciding: catch if already registered OR switch on now (and was off at start)
+                        if (caught || (sw_was_zero_at_start && (sw[current_stick] == 1'b1))) begin
                             stick_states[current_stick*3 +: 3] <= 3'b010;
-                        else
-                            stick_states[current_stick*3 +: 3] <= 3'b011;
-                        if (caught)
                             score <= score + 1;
+                        end else
+                            stick_states[current_stick*3 +: 3] <= 3'b011;
                         timer <= 0;
                     end else
                         timer <= timer + 1;

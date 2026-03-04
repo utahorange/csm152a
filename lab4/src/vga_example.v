@@ -211,8 +211,9 @@ module vga_example (
         .an(an)
     );
 
-    // Fall tick: advance every FALL_DIVIDER cycles when not in Wait
-    wire fall_tick = (fall_counter == FALL_DIVIDER - 1);
+    // Fall tick: advance every FALL_DIVIDER cycles, but only during Dropping state (game_state == 2'b10)
+    wire in_dropping_state = (game_state == 2'b10);
+    wire fall_tick = in_dropping_state && (fall_counter == FALL_DIVIDER - 1);
 
     // Next Y for each stick: if yellow and not at max, increment; else keep current
     wire [9:0] next_y0 = (stick_states[2:0] == 3'b001 && sticks_y[ 9: 0] < MAX_STICK_Y) ? sticks_y[ 9: 0] + 1 : sticks_y[ 9: 0];
@@ -225,14 +226,18 @@ module vga_example (
     wire [9:0] next_y7 = (stick_states[23:21] == 3'b001 && sticks_y[79:70] < MAX_STICK_Y) ? sticks_y[79:70] + 1 : sticks_y[79:70];
 
     always @(posedge pclk) begin
+        // In Wait state, reset stick positions and fall counter
         if (game_state == 2'b00) begin
             sticks_y <= {8{STICK_Y_VALUE}};
             fall_counter <= 0;
-        end else if (fall_tick) begin
-            sticks_y <= {next_y7, next_y6, next_y5, next_y4, next_y3, next_y2, next_y1, next_y0};
-            fall_counter <= 0;
-        end else begin
-            fall_counter <= fall_counter + 1;
+        end else if (in_dropping_state) begin
+            // Only advance falling sticks and fall counter while in Dropping state
+            if (fall_tick) begin
+                sticks_y <= {next_y7, next_y6, next_y5, next_y4, next_y3, next_y2, next_y1, next_y0};
+                fall_counter <= 0;
+            end else begin
+                fall_counter <= fall_counter + 1;
+            end
         end
     end
 
@@ -329,9 +334,12 @@ module game_fsm(
         case (game_state)
             2'b00: begin
                 if (start_button) begin
-                    next_state = 2'b01; // Transition to Start state on button press
+                    // Start a new countdown phase
+                    next_state     <= 2'b01;
+                    countdown_val  <= 2'd3;
+                    timer          <= 32'd0;
                 end else begin
-                    next_state = 2'b00; // Stay in Wait state
+                    next_state <= 2'b00; // Stay in Wait state
                 end
 
                 // Cooldown: after changing difficulty, ignore pulses for ~10 ms (one press = one step)
@@ -421,40 +429,20 @@ module game_fsm(
         endcase
     end
 
-    // Countdown logic
-    reg [1:0] countdown = 2'b11; // 3, 2, 1 countdown
-    reg countdown_active = 0;
-    reg [31:0] one_second_timer = 0; // Timer for 1-second intervals
-
-    always @(posedge clk) begin
-        if (start_button && !countdown_active) begin
-            countdown <= 2'b11; // Start countdown at 3
-            countdown_active <= 1;
-            one_second_timer <= 0;
-        end
-
-        if (countdown_active) begin
-            one_second_timer <= one_second_timer + 1;
-            if (one_second_timer == 100_000_000) begin // Assuming 100 MHz clock, 1 second
-                one_second_timer <= 0;
-                if (countdown > 0)
-                    countdown <= countdown - 1;
-                else
-                    countdown_active <= 0; // Stop countdown
-            end
-        end
-    end
-
-    // Update BCD display during countdown
+    // Update BCD display:
+    // - In Wait state, show difficulty level
+    // - In Countdown state, show 3-2-1 based on countdown_val
     always @(*) begin
-        if (countdown_active) begin
-            case (countdown)
-                2'b11: seg <= 7'b0110000; // Display 3
-                2'b10: seg <= 7'b0100100; // Display 2
-                2'b01: seg <= 7'b1111001; // Display 1
+        if (game_state == 2'b01) begin
+            // Countdown visible during countdown state
+            case (countdown_val)
+                2'd3: seg <= 7'b0110000; // Display 3
+                2'd2: seg <= 7'b0100100; // Display 2
+                2'd1: seg <= 7'b1111001; // Display 1
                 default: seg <= 7'b1111111; // Blank display
             endcase
         end else begin
+            // Otherwise, show difficulty level (including in Wait and during game)
             case (difficulty_level)
                 4'd0: seg <= 7'b1000000; // Display 0
                 4'd1: seg <= 7'b1111001; // Display 1

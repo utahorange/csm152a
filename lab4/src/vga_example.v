@@ -114,8 +114,8 @@ module vga_example (
     hs <= hsync;
   end
 
-    localparam integer TOP_EDGE = 570;
-    localparam integer STICK_HEIGHT = 270;
+    localparam integer TOP_EDGE = 200;
+    localparam integer STICK_HEIGHT = 150;
     localparam integer STICK_WIDTH = 64;
     localparam integer STICK_SPACING = 32;
     localparam integer NUM_STICKS = 8;
@@ -123,8 +123,14 @@ module vga_example (
     // 8 stick positions: 80 bits = 8 x 10-bit coords. stick 0 = [9:0], stick 1 = [19:10], ... stick 7 = [79:70].
     // X: 32, 128, 224, 320, 416, 512, 608, 704.  Y: 300 for all (TOP_EDGE - STICK_HEIGHT).
     reg [79:0] sticks_x = {10'd704, 10'd608, 10'd512, 10'd416, 10'd320, 10'd224, 10'd128, 10'd32};
-    reg [79:0] sticks_y = {10'd300, 10'd300, 10'd300, 10'd300, 10'd300, 10'd300, 10'd300, 10'd300};
-    
+
+    localparam [9:0] STICK_Y_VALUE = 80;
+
+    reg [79:0] sticks_y = {
+        STICK_Y_VALUE, STICK_Y_VALUE, STICK_Y_VALUE, STICK_Y_VALUE,
+        STICK_Y_VALUE, STICK_Y_VALUE, STICK_Y_VALUE, STICK_Y_VALUE
+    };
+
     wire [3:0] stick_number;
     within_stick within_stick_check(.hcount(hcount), 
                                     .vcount(vcount), 

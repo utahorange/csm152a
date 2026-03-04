@@ -268,7 +268,6 @@ module game_fsm(
     reg [31:0] timer;
     reg [1:0] countdown_val;   // 3, 2, 1
     reg [2:0] current_stick;   // which stick is yellow (0..7)
-    reg sw_was_zero_at_start;  // required: switch was 0 when stick turned yellow
     reg caught;                // 0->1 on correct switch during window
     reg [3:0] score;
     reg [15:0] lfsr;           // for random stick choice
@@ -289,6 +288,10 @@ module game_fsm(
         sw_s_d    <= sw_s;
     end
 
+    // Map physical switches to sticks: reverse order so leftmost stick uses rightmost switch.
+    wire [2:0] sw_index_for_stick = 3'd7 - current_stick;
+    wire       sw_for_stick       = sw_s[sw_index_for_stick];
+
     wire all_done = (stick_states[3*0 +: 3] != 3'b000 && stick_states[3*0 +: 3] != 3'b001) &&
                     (stick_states[3*1 +: 3] != 3'b000 && stick_states[3*1 +: 3] != 3'b001) &&
                     (stick_states[3*2 +: 3] != 3'b000 && stick_states[3*2 +: 3] != 3'b001) &&
@@ -307,7 +310,6 @@ module game_fsm(
         countdown_val = 2'd3;
         timer = 0;
         current_stick = 0;
-        sw_was_zero_at_start = 1'b0;
         caught = 1'b0;
         score = 4'd0;
         lfsr = 16'habcd;
@@ -364,18 +366,18 @@ module game_fsm(
                 // Phase C: stick is green/red, run result wait timer; when done, pick next or go game over
 
                 if (stick_states[current_stick*3 +: 3] == 3'b000) begin
-                    // Phase A: turn yellow and require sw was 0
+                    // Phase A: turn yellow and start catch window
                     stick_states[current_stick*3 +: 3] <= 3'b001;
-                    sw_was_zero_at_start <= (sw_s[current_stick] == 1'b0);
-                    caught <= 1'b0;
+                    // If the switch is already ON when yellow starts, count it as caught.
+                    caught <= sw_for_stick;
                     timer <= 0;
                 end else if (stick_states[current_stick*3 +: 3] == 3'b001) begin
-                    // Phase B: catch window — register 0->1 so we don't miss the cycle timer expires
-                    if (sw_was_zero_at_start && (sw_s[current_stick] && !sw_s_d[current_stick]))
+                    // Phase B: catch window — latch if the switch is ON at any point during the window.
+                    if (sw_for_stick == 1'b1)
                         caught <= 1'b1;
                     if (timer >= catch_ticks) begin
-                        // Use current switch state when deciding: catch if already registered OR switch on now (and was off at start)
-                        if (caught || (sw_was_zero_at_start && (sw_s[current_stick] == 1'b1))) begin
+                        // Catch if it was ever observed ON during the window.
+                        if (caught) begin
                             stick_states[current_stick*3 +: 3] <= 3'b010;
                             score <= score + 1;
                         end else

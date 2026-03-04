@@ -243,10 +243,10 @@ module game_fsm(
                 end
 
                 // change the difficulty_level based on right and left button presses
-                if (right_button && difficulty_level < 4'b1111) begin
-                    difficulty_level = difficulty_level + 1; // Increase difficulty level
-                end else if (left_button && difficulty_level > 4'b0000) begin
-                    difficulty_level = difficulty_level - 1; // Decrease difficulty level
+                if (right_button && difficulty_level < 4'd9) begin
+                    difficulty_level <= difficulty_level + 1; // Increase difficulty level
+                end else if (left_button && difficulty_level > 4'd0) begin
+                    difficulty_level <= difficulty_level - 1; // Decrease difficulty level
                 end
 
             end
@@ -322,17 +322,17 @@ module game_fsm(
     // Segment Decoder (Active Low for Basys3)
     always @(*) begin
         case(difficulty_level)
-            4'b0000: seg = 7'b1000000; // "0"
-            4'b0001: seg = 7'b1111001; // "1"
-            4'b0010: seg = 7'b0100100; // "2"
-            4'b0011: seg = 7'b0110000; // "3"
-            4'b0100: seg = 7'b0011001; // "4"
-            4'b0101: seg = 7'b0010010; // "5"
-            4'b0110: seg = 7'b0000010; // "6"
-            4'b0111: seg = 7'b1111000; // "7"
-            4'b1000: seg = 7'b0000000; // "8"
-            4'b1001: seg = 7'b0010000; // "9"
-            default: seg = 7'b1111111; // Off
+            4'd0: seg <= 7'b1000000; // Display 0
+            4'd1: seg <= 7'b1111001; // Display 1
+            4'd2: seg <= 7'b0100100; // Display 2
+            4'd3: seg <= 7'b0110000; // Display 3
+            4'd4: seg <= 7'b0011001; // Display 4
+            4'd5: seg <= 7'b0010010; // Display 5
+            4'd6: seg <= 7'b0000010; // Display 6
+            4'd7: seg <= 7'b1111000; // Display 7
+            4'd8: seg <= 7'b0000000; // Display 8
+            4'd9: seg <= 7'b0010000; // Display 9
+            default: seg <= 7'b1111111; // Blank display
         endcase
     end
 

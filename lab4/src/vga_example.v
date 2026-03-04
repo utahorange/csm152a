@@ -419,11 +419,24 @@ module game_fsm(
             end
 
             2'b11: begin
+                // Game over: allow changing difficulty, and restart game on start_button
                 if (start_button) begin
-                    next_state <= 2'b00;
+                    next_state   <= 2'b00;
                     stick_states <= 24'h0;
-                end else
+                end else begin
                     next_state <= 2'b11;
+                end
+
+                // Same difficulty adjustment behavior as in Wait state
+                if (difficulty_cooldown > 20'd0)
+                    difficulty_cooldown <= difficulty_cooldown - 1'b1;
+                else if (right_button_pulse && difficulty_level < 4'd9) begin
+                    difficulty_level     <= difficulty_level + 1;
+                    difficulty_cooldown  <= DIFF_COOLDOWN_CYCLES;
+                end else if (left_button_pulse && difficulty_level > 4'd1) begin
+                    difficulty_level     <= difficulty_level - 1;
+                    difficulty_cooldown  <= DIFF_COOLDOWN_CYCLES;
+                end
             end
             default: next_state <= 2'b00;
         endcase

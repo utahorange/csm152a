@@ -296,9 +296,9 @@ module game_fsm(
                 end
 
                 // change the difficulty_level based on right and left button presses
-                if (right_button && difficulty_level < 4'd9) begin
+                if (right_button_pulse && difficulty_level < 4'd9) begin
                     difficulty_level <= difficulty_level + 1; // Increase difficulty level
-                end else if (left_button && difficulty_level > 4'd0) begin
+                end else if (left_button_pulse && difficulty_level > 4'd0) begin
                     difficulty_level <= difficulty_level - 1; // Decrease difficulty level
                 end
 

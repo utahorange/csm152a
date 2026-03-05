@@ -349,8 +349,8 @@ module game_fsm(
     always @(posedge clk) begin
         case (game_state)
             2'b00: begin
-                if (start_button) begin
-                    // Start a new countdown phase
+                if (start_button && (sw_s == 8'b0)) begin
+                    // Start a new countdown phase only when all switches are off
                     next_state     <= 2'b01;
                     countdown_val  <= 2'd3;
                     timer          <= 32'd0;

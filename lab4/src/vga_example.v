@@ -390,11 +390,15 @@ module game_fsm(
                 // Phase C: stick is green/red, run result wait timer; when done, pick next or go game over
 
                 if (stick_states[current_stick*3 +: 3] == 3'b000) begin
-                    // Phase A: turn yellow and start catch window
-                    stick_states[current_stick*3 +: 3] <= 3'b001;
-                    // If the switch is already ON when yellow starts, count it as caught.
-                    caught <= sw_for_stick;
-                    timer <= 0;
+                    // Phase A: if switch already on before stick turns yellow, mark red; else turn yellow
+                    if (sw_for_stick) begin
+                        stick_states[current_stick*3 +: 3] <= 3'b011;  // red: switched on too early
+                        timer <= 0;
+                    end else begin
+                        stick_states[current_stick*3 +: 3] <= 3'b001;
+                        caught <= 1'b0;
+                        timer <= 0;
+                    end
                 end else if (stick_states[current_stick*3 +: 3] == 3'b001) begin
                     // Phase B: stick is yellow (falling). Green if user catches (switch on); red only when stick reaches bottom.
                     if (sw_for_stick == 1'b1)

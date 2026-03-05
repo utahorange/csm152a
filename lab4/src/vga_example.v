@@ -293,6 +293,7 @@ module game_fsm(
     reg [3:0] score;
     reg [15:0] lfsr;           // for random stick choice
     reg [19:0] difficulty_cooldown;  // ignore extra pulses after one difficulty change (~10 ms at 40 MHz)
+    reg [23:0] next_stick_states;     // for applying early-red and phase updates in Dropping
 
     localparam [19:0] DIFF_COOLDOWN_CYCLES = 20'd400_000;
 
@@ -384,33 +385,33 @@ module game_fsm(
             end
 
             2'b10: begin
-                // Sub-phases: we use timer and stick_states to know phase.
-                // Phase A: current stick is still white -> set it yellow, require sw==0, start catch timer
-                // Phase B: stick is yellow, run catch timer; detect 0->1 on sw[current_stick]; when timer expires set green/red
-                // Phase C: stick is green/red, run result wait timer; when done, pick next or go game over
+                // Continuous check: any white stick whose switch is on becomes red immediately (no "flip on then off before selection").
+                next_stick_states = stick_states;
+                if (stick_states[ 2: 0] == 3'b000 && sw_s[7]) next_stick_states[ 2: 0] = 3'b011;
+                if (stick_states[ 5: 3] == 3'b000 && sw_s[6]) next_stick_states[ 5: 3] = 3'b011;
+                if (stick_states[ 8: 6] == 3'b000 && sw_s[5]) next_stick_states[ 8: 6] = 3'b011;
+                if (stick_states[11: 9] == 3'b000 && sw_s[4]) next_stick_states[11: 9] = 3'b011;
+                if (stick_states[14:12] == 3'b000 && sw_s[3]) next_stick_states[14:12] = 3'b011;
+                if (stick_states[17:15] == 3'b000 && sw_s[2]) next_stick_states[17:15] = 3'b011;
+                if (stick_states[20:18] == 3'b000 && sw_s[1]) next_stick_states[20:18] = 3'b011;
+                if (stick_states[23:21] == 3'b000 && sw_s[0]) next_stick_states[23:21] = 3'b011;
 
-                if (stick_states[current_stick*3 +: 3] == 3'b000) begin
-                    // Phase A: if switch already on before stick turns yellow, mark red; else turn yellow
-                    if (sw_for_stick) begin
-                        stick_states[current_stick*3 +: 3] <= 3'b011;  // red: switched on too early
-                        timer <= 0;
-                    end else begin
-                        stick_states[current_stick*3 +: 3] <= 3'b001;
-                        caught <= 1'b0;
-                        timer <= 0;
-                    end
-                end else if (stick_states[current_stick*3 +: 3] == 3'b001) begin
-                    // Phase B: stick is yellow (falling). Green if user catches (switch on); red only when stick reaches bottom.
+                // Phase A/B/C use effective state (after early-red) for current stick
+                if (next_stick_states[current_stick*3 +: 3] == 3'b000) begin
+                    // Phase A: turn yellow (switch is off, else we'd have set red above)
+                    next_stick_states[current_stick*3 +: 3] = 3'b001;
+                    caught <= 1'b0;
+                    timer <= 0;
+                end else if (next_stick_states[current_stick*3 +: 3] == 3'b001) begin
+                    // Phase B: stick is yellow (falling). Green if user catches; red only when stick reaches bottom.
                     if (sw_for_stick == 1'b1)
                         caught <= 1'b1;
                     if (caught || sw_for_stick) begin
-                        // User caught it during fall (switch on this cycle or earlier) — turn green
-                        stick_states[current_stick*3 +: 3] <= 3'b010;
+                        next_stick_states[current_stick*3 +: 3] = 3'b010;
                         score <= score + 1;
                         timer <= 0;
                     end else if (stick_reached_bottom) begin
-                        // Stick reached bottom without being caught — turn red
-                        stick_states[current_stick*3 +: 3] <= 3'b011;
+                        next_stick_states[current_stick*3 +: 3] = 3'b011;
                         timer <= 0;
                     end
                 end else begin
@@ -420,22 +421,22 @@ module game_fsm(
                         if (all_done)
                             next_state <= 2'b11;
                         else begin
-                            // Pick next white stick using LFSR: first white in order (lfsr, lfsr+1, ..., lfsr+7) mod 8
                             case (1'b1)
-                                (stick_states[(lfsr[2:0]     )*3 +: 3] == 3'b000): current_stick <= lfsr[2:0];
-                                (stick_states[(lfsr[2:0]+3'd1)*3 +: 3] == 3'b000): current_stick <= lfsr[2:0]+3'd1;
-                                (stick_states[(lfsr[2:0]+3'd2)*3 +: 3] == 3'b000): current_stick <= lfsr[2:0]+3'd2;
-                                (stick_states[(lfsr[2:0]+3'd3)*3 +: 3] == 3'b000): current_stick <= lfsr[2:0]+3'd3;
-                                (stick_states[(lfsr[2:0]+3'd4)*3 +: 3] == 3'b000): current_stick <= lfsr[2:0]+3'd4;
-                                (stick_states[(lfsr[2:0]+3'd5)*3 +: 3] == 3'b000): current_stick <= lfsr[2:0]+3'd5;
-                                (stick_states[(lfsr[2:0]+3'd6)*3 +: 3] == 3'b000): current_stick <= lfsr[2:0]+3'd6;
-                                (stick_states[(lfsr[2:0]+3'd7)*3 +: 3] == 3'b000): current_stick <= lfsr[2:0]+3'd7;
-                                default: current_stick <= lfsr[2:0];  // fallback (should not happen if !all_done)
+                                (next_stick_states[(lfsr[2:0]     )*3 +: 3] == 3'b000): current_stick <= lfsr[2:0];
+                                (next_stick_states[(lfsr[2:0]+3'd1)*3 +: 3] == 3'b000): current_stick <= lfsr[2:0]+3'd1;
+                                (next_stick_states[(lfsr[2:0]+3'd2)*3 +: 3] == 3'b000): current_stick <= lfsr[2:0]+3'd2;
+                                (next_stick_states[(lfsr[2:0]+3'd3)*3 +: 3] == 3'b000): current_stick <= lfsr[2:0]+3'd3;
+                                (next_stick_states[(lfsr[2:0]+3'd4)*3 +: 3] == 3'b000): current_stick <= lfsr[2:0]+3'd4;
+                                (next_stick_states[(lfsr[2:0]+3'd5)*3 +: 3] == 3'b000): current_stick <= lfsr[2:0]+3'd5;
+                                (next_stick_states[(lfsr[2:0]+3'd6)*3 +: 3] == 3'b000): current_stick <= lfsr[2:0]+3'd6;
+                                (next_stick_states[(lfsr[2:0]+3'd7)*3 +: 3] == 3'b000): current_stick <= lfsr[2:0]+3'd7;
+                                default: current_stick <= lfsr[2:0];
                             endcase
                         end
                     end else
                         timer <= timer + 1;
                 end
+                stick_states <= next_stick_states;
             end
 
             2'b11: begin

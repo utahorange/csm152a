@@ -126,7 +126,7 @@ module vga_example (
 
     localparam [9:0] STICK_Y_VALUE = 80;
     localparam [9:0] MAX_STICK_Y = 330;   // 480 - STICK_HEIGHT, keep on screen
-    localparam [31:0] FALL_DIVIDER = 32'd40_000;  // ~1 ms at 40 MHz -> 1 pixel/ms fall rate
+    localparam [31:0] FALL_DIVIDER = 32'd160_000; // at 40 MHz: larger = slower fall (~4 ms/pixel for longer fall)
 
     reg [79:0] sticks_y = {
         STICK_Y_VALUE, STICK_Y_VALUE, STICK_Y_VALUE, STICK_Y_VALUE,
@@ -150,6 +150,7 @@ module vga_example (
     wire [1:0] game_state;
     wire [3:0] difficulty_level;
     wire game_finished;
+    wire [2:0] current_stick;
 
     // RGB: blanking = black; start screen = dim background; sticks = color by state; gaps = black
     reg [3:0] r_next, g_next, b_next;
@@ -197,14 +198,27 @@ module vga_example (
     input_proc btnCenter_input(.clk(pclk), .reset(1'b0), .button_in(btnCenter), 
         .button_level(btnCenter_level), .button_pulse(btnCenter_pulse), .button_toggle(btnCenter_toggle));
 
+    // Current stick's Y position (for FSM to know when stick has stopped falling)
+    wire [9:0] current_stick_y = (current_stick == 3'd0) ? sticks_y[ 9: 0] :
+                                 (current_stick == 3'd1) ? sticks_y[19:10] :
+                                 (current_stick == 3'd2) ? sticks_y[29:20] :
+                                 (current_stick == 3'd3) ? sticks_y[39:30] :
+                                 (current_stick == 3'd4) ? sticks_y[49:40] :
+                                 (current_stick == 3'd5) ? sticks_y[59:50] :
+                                 (current_stick == 3'd6) ? sticks_y[69:60] :
+                                 sticks_y[79:70];
+    wire stick_reached_bottom = (current_stick_y >= MAX_STICK_Y);
+
     game_fsm my_game_fsm(
         .clk(pclk),
         .start_button(btnCenter_level),
         .right_button_pulse(btnRight_pulse),
         .left_button_pulse(btnLeft_pulse),
         .sw(sw),
+        .stick_reached_bottom(stick_reached_bottom),
         .stick_states(stick_states),
         .game_state(game_state),
+        .current_stick(current_stick),
         .difficulty_level(difficulty_level),
         .game_finished(game_finished),
         .seg(seg),
@@ -250,9 +264,11 @@ module game_fsm(
     input wire right_button_pulse,
     input wire left_button_pulse,
     input wire [7:0] sw,
+    input wire stick_reached_bottom,  // current stick Y has reached bottom (stopped falling)
 
     output reg [23:0] stick_states,  // 3 bits per stick: 000=white, 001=yellow, 010=green, 011=red
     output reg [1:0] game_state,     // 00=Wait, 01=Countdown, 10=Dropping, 11=GameOver
+    output reg [2:0] current_stick,
     output reg [3:0] difficulty_level,
     output reg game_finished,
 
@@ -380,19 +396,19 @@ module game_fsm(
                     caught <= sw_for_stick;
                     timer <= 0;
                 end else if (stick_states[current_stick*3 +: 3] == 3'b001) begin
-                    // Phase B: catch window — latch if the switch is ON at any point during the window.
+                    // Phase B: stick is yellow (falling). Green if user catches (switch on); red only when stick reaches bottom.
                     if (sw_for_stick == 1'b1)
                         caught <= 1'b1;
-                    if (timer >= catch_ticks) begin
-                        // Catch if it was ever observed ON during the window.
-                        if (caught) begin
-                            stick_states[current_stick*3 +: 3] <= 3'b010;
-                            score <= score + 1;
-                        end else
-                            stick_states[current_stick*3 +: 3] <= 3'b011;
+                    if (caught || sw_for_stick) begin
+                        // User caught it during fall (switch on this cycle or earlier) — turn green
+                        stick_states[current_stick*3 +: 3] <= 3'b010;
+                        score <= score + 1;
                         timer <= 0;
-                    end else
-                        timer <= timer + 1;
+                    end else if (stick_reached_bottom) begin
+                        // Stick reached bottom without being caught — turn red
+                        stick_states[current_stick*3 +: 3] <= 3'b011;
+                        timer <= 0;
+                    end
                 end else begin
                     // Phase C: show result, wait RESULT_WAIT then next stick or game over
                     if (timer >= RESULT_WAIT) begin

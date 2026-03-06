@@ -7,7 +7,7 @@
 what do we need to do now:
 - [ ] fix catching (when you also have the condition of forcing the level to be pulled down at beginning)
 - [x] game starts after countdown
-- [ ] show start message
+- [x] show start message
 - [ ] final score on bcd display
 - [ ] difficulty level doesn't seem to actually make stuff faster
 - [ ] make the time btwn sticks being dropped also random

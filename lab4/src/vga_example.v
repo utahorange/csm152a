@@ -150,15 +150,33 @@ module vga_example (
     wire [1:0] game_state;
     wire [3:0] difficulty_level;
     wire game_finished;
+    wire within_text;
+    
+    within_text_rom start_text_rom( .clk(pclk), 
+                                            .hcount(hcount), 
+                                            .vcount(vcount),
+                                            .is_in_set(within_text));
 
     // RGB: blanking = black; start screen = dim background; sticks = color by state; gaps = black
     reg [3:0] r_next, g_next, b_next;
     always @(*) begin
         if (hblnk || vblnk) begin
-            r_next = 4'h0; g_next = 4'h0; b_next = 4'h0;
+            r_next = 4'h0; 
+            g_next = 4'h0; 
+            b_next = 4'h0;
         end else if (game_state == 2'b00) begin
-            // Start screen: simple colored background (e.g. dark blue) when in WAIT
-            r_next = 4'h1; g_next = 4'h2; b_next = 4'h4;
+            
+            /* New Pseudocode:
+                 - Use the within_text_rom module to check if (hcount, vcount) is within the "START" text area
+                 - If within_text_rom outputs 1, output white; else output dark blue
+            */
+            
+            if (within_text) begin
+                r_next = 4'hf; g_next = 4'hf; b_next = 4'hf; // white for text
+            end else begin
+                r_next = 4'h1; g_next = 4'h2; b_next = 4'h4; // dark blue background
+            end
+
         end else if (game_state == 2'b11) begin
             // Game over: dim background
             r_next = 4'h2; g_next = 4'h2; b_next = 4'h2;

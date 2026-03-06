@@ -4,9 +4,11 @@ module game_fsm(
     input wire right_button_pulse,
     input wire left_button_pulse,
     input wire [7:0] sw,
+    input wire stick_reached_bottom,  // current stick Y has reached bottom (stopped falling)
 
     output reg [23:0] stick_states,  // 3 bits per stick: 000=white, 001=yellow, 010=green, 011=red
     output reg [1:0] game_state,     // 00=Wait, 01=Countdown, 10=Dropping, 11=GameOver
+    output reg [2:0] current_stick,
     output reg [3:0] difficulty_level,
     output reg game_finished,
 
@@ -31,6 +33,7 @@ module game_fsm(
     reg [3:0] score;
     reg [15:0] lfsr;           // for random stick choice
     reg [19:0] difficulty_cooldown;  // ignore extra pulses after one difficulty change (~10 ms at 40 MHz)
+    reg [23:0] next_stick_states;     // for applying early-red and phase updates in Dropping
 
     localparam [19:0] DIFF_COOLDOWN_CYCLES = 20'd400_000;
 
@@ -87,8 +90,8 @@ module game_fsm(
     always @(posedge clk) begin
         case (game_state)
             2'b00: begin
-                if (start_button) begin
-                    // Start a new countdown phase
+                if (start_button && (sw_s == 8'b0)) begin
+                    // Start a new countdown phase only when all switches are off
                     next_state     <= 2'b01;
                     countdown_val  <= 2'd3;
                     timer          <= 32'd0;
@@ -122,31 +125,35 @@ module game_fsm(
             end
 
             2'b10: begin
-                // Sub-phases: we use timer and stick_states to know phase.
-                // Phase A: current stick is still white -> set it yellow, require sw==0, start catch timer
-                // Phase B: stick is yellow, run catch timer; detect 0->1 on sw[current_stick]; when timer expires set green/red
-                // Phase C: stick is green/red, run result wait timer; when done, pick next or go game over
+                // Continuous check: any white stick whose switch is on becomes red immediately (no "flip on then off before selection").
+                next_stick_states = stick_states;
+                if (stick_states[ 2: 0] == 3'b000 && sw_s[7]) next_stick_states[ 2: 0] = 3'b011;
+                if (stick_states[ 5: 3] == 3'b000 && sw_s[6]) next_stick_states[ 5: 3] = 3'b011;
+                if (stick_states[ 8: 6] == 3'b000 && sw_s[5]) next_stick_states[ 8: 6] = 3'b011;
+                if (stick_states[11: 9] == 3'b000 && sw_s[4]) next_stick_states[11: 9] = 3'b011;
+                if (stick_states[14:12] == 3'b000 && sw_s[3]) next_stick_states[14:12] = 3'b011;
+                if (stick_states[17:15] == 3'b000 && sw_s[2]) next_stick_states[17:15] = 3'b011;
+                if (stick_states[20:18] == 3'b000 && sw_s[1]) next_stick_states[20:18] = 3'b011;
+                if (stick_states[23:21] == 3'b000 && sw_s[0]) next_stick_states[23:21] = 3'b011;
 
-                if (stick_states[current_stick*3 +: 3] == 3'b000) begin
-                    // Phase A: turn yellow and start catch window
-                    stick_states[current_stick*3 +: 3] <= 3'b001;
-                    // If the switch is already ON when yellow starts, count it as caught.
-                    caught <= sw_for_stick;
+                // Phase A/B/C use effective state (after early-red) for current stick
+                if (next_stick_states[current_stick*3 +: 3] == 3'b000) begin
+                    // Phase A: turn yellow (switch is off, else we'd have set red above)
+                    next_stick_states[current_stick*3 +: 3] = 3'b001;
+                    caught <= 1'b0;
                     timer <= 0;
-                end else if (stick_states[current_stick*3 +: 3] == 3'b001) begin
-                    // Phase B: catch window — latch if the switch is ON at any point during the window.
+                end else if (next_stick_states[current_stick*3 +: 3] == 3'b001) begin
+                    // Phase B: stick is yellow (falling). Green if user catches; red only when stick reaches bottom.
                     if (sw_for_stick == 1'b1)
                         caught <= 1'b1;
-                    if (timer >= catch_ticks) begin
-                        // Catch if it was ever observed ON during the window.
-                        if (caught) begin
-                            stick_states[current_stick*3 +: 3] <= 3'b010;
-                            score <= score + 1;
-                        end else
-                            stick_states[current_stick*3 +: 3] <= 3'b011;
+                    if (caught || sw_for_stick) begin
+                        next_stick_states[current_stick*3 +: 3] = 3'b010;
+                        score <= score + 1;
                         timer <= 0;
-                    end else
-                        timer <= timer + 1;
+                    end else if (stick_reached_bottom) begin
+                        next_stick_states[current_stick*3 +: 3] = 3'b011;
+                        timer <= 0;
+                    end
                 end else begin
                     // Phase C: show result, wait RESULT_WAIT then next stick or game over
                     if (timer >= RESULT_WAIT) begin
@@ -154,22 +161,22 @@ module game_fsm(
                         if (all_done)
                             next_state <= 2'b11;
                         else begin
-                            // Pick next white stick using LFSR: first white in order (lfsr, lfsr+1, ..., lfsr+7) mod 8
                             case (1'b1)
-                                (stick_states[(lfsr[2:0]     )*3 +: 3] == 3'b000): current_stick <= lfsr[2:0];
-                                (stick_states[(lfsr[2:0]+3'd1)*3 +: 3] == 3'b000): current_stick <= lfsr[2:0]+3'd1;
-                                (stick_states[(lfsr[2:0]+3'd2)*3 +: 3] == 3'b000): current_stick <= lfsr[2:0]+3'd2;
-                                (stick_states[(lfsr[2:0]+3'd3)*3 +: 3] == 3'b000): current_stick <= lfsr[2:0]+3'd3;
-                                (stick_states[(lfsr[2:0]+3'd4)*3 +: 3] == 3'b000): current_stick <= lfsr[2:0]+3'd4;
-                                (stick_states[(lfsr[2:0]+3'd5)*3 +: 3] == 3'b000): current_stick <= lfsr[2:0]+3'd5;
-                                (stick_states[(lfsr[2:0]+3'd6)*3 +: 3] == 3'b000): current_stick <= lfsr[2:0]+3'd6;
-                                (stick_states[(lfsr[2:0]+3'd7)*3 +: 3] == 3'b000): current_stick <= lfsr[2:0]+3'd7;
-                                default: current_stick <= lfsr[2:0];  // fallback (should not happen if !all_done)
+                                (next_stick_states[(lfsr[2:0]     )*3 +: 3] == 3'b000): current_stick <= lfsr[2:0];
+                                (next_stick_states[(lfsr[2:0]+3'd1)*3 +: 3] == 3'b000): current_stick <= lfsr[2:0]+3'd1;
+                                (next_stick_states[(lfsr[2:0]+3'd2)*3 +: 3] == 3'b000): current_stick <= lfsr[2:0]+3'd2;
+                                (next_stick_states[(lfsr[2:0]+3'd3)*3 +: 3] == 3'b000): current_stick <= lfsr[2:0]+3'd3;
+                                (next_stick_states[(lfsr[2:0]+3'd4)*3 +: 3] == 3'b000): current_stick <= lfsr[2:0]+3'd4;
+                                (next_stick_states[(lfsr[2:0]+3'd5)*3 +: 3] == 3'b000): current_stick <= lfsr[2:0]+3'd5;
+                                (next_stick_states[(lfsr[2:0]+3'd6)*3 +: 3] == 3'b000): current_stick <= lfsr[2:0]+3'd6;
+                                (next_stick_states[(lfsr[2:0]+3'd7)*3 +: 3] == 3'b000): current_stick <= lfsr[2:0]+3'd7;
+                                default: current_stick <= lfsr[2:0];
                             endcase
                         end
                     end else
                         timer <= timer + 1;
                 end
+                stick_states <= next_stick_states;
             end
 
             2'b11: begin
@@ -229,5 +236,5 @@ module game_fsm(
     always @(posedge clk) begin
         an <= 4'b1110;  // rightmost digit only for simplicity
     end
-
+    
 endmodule

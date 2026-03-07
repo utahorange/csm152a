@@ -223,6 +223,9 @@ module vga_display(
                                  sticks_y[79:70];
     wire stick_reached_bottom = (current_stick_y >= MAX_STICK_Y);
 
+    wire [6:0] score; // 7-bit number because it's a maximum of 8 * 9, inclusive
+        // multiply the score by the difficulty level to get the actual score
+
     game_fsm my_game_fsm(
         .clk(pclk),
         .start_button(btnCenter_level),
@@ -236,7 +239,8 @@ module vga_display(
         .difficulty_level(difficulty_level),
         .game_finished(game_finished),
         .seg(seg),
-        .an(an)
+        .an(an),
+        .score(score)
     );
 
     // Fall tick: advance every FALL_DIVIDER cycles, but only during Dropping state (game_state == 2'b10)

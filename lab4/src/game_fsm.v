@@ -13,7 +13,8 @@ module game_fsm(
     output reg game_finished,
 
     output reg [6:0] seg,
-    output reg [3:0] an
+    output reg [3:0] an,
+    output reg [6:0] score
 );
 
     // --- Timers: 40 MHz -> 1 sec = 40_000_000 cycles; 1 ms = 40_000 cycles ---
@@ -30,7 +31,6 @@ module game_fsm(
     reg [1:0] countdown_val;   // 3, 2, 1
     reg [2:0] current_stick;   // which stick is yellow (0..7)
     reg caught;                // 0->1 on correct switch during window
-    reg [3:0] score;
     reg [15:0] lfsr;           // for random stick choice
     reg [19:0] difficulty_cooldown;  // ignore extra pulses after one difficulty change (~10 ms at 40 MHz)
     reg [23:0] next_stick_states;     // for applying early-red and phase updates in Dropping
@@ -87,9 +87,35 @@ module game_fsm(
             lfsr <= { lfsr[14:0], lfsr[15] ^ lfsr[13] ^ lfsr[12] ^ lfsr[10] };
     end
 
+    //reg [1:0] digit_to_display = 2'b00; // for multiplexing which digit to show on 7-seg
+    wire [3:0] score_tens_digit = score / 10;
+    wire [3:0] score_ones_digit = score % 10;
+
+    reg [18:0] refresh_counter = 0; 
     always @(posedge clk) begin
+        refresh_counter <= refresh_counter + 1;
+    end
+
+    // 2. Use the upper bits to select the digit (roughly 1.3ms per digit at 40MHz)
+    wire [1:0] digit_to_display = refresh_counter[18:17];
+
+    always @(posedge clk) begin
+        if (digit_to_display == 2'b00) begin
+            // digit_to_display <= 2'b10;
+            an <= 4'b1110;  // rightmost digit
+        end
+        else if (digit_to_display == 2'b10) begin
+            // digit_to_display <= 2'b11;
+            an <= 4'b1011; // third digit from right
+        end
+        else begin
+            // digit_to_display <= 2'b00;
+            an <= 4'b0111; // leftmost digit
+        end
+        
         case (game_state)
             2'b00: begin
+                score <= 0;
                 if (start_button && (sw_s == 8'b0)) begin
                     // Start a new countdown phase only when all switches are off
                     next_state     <= 2'b01;
@@ -148,7 +174,7 @@ module game_fsm(
                         caught <= 1'b1;
                     if (caught || sw_for_stick) begin
                         next_stick_states[current_stick*3 +: 3] = 3'b010;
-                        score <= score + 1;
+                        score <= score + difficulty_level; // increase score by difficulty level for each catch
                         timer <= 0;
                     end else if (stick_reached_bottom) begin
                         next_stick_states[current_stick*3 +: 3] = 3'b011;
@@ -184,6 +210,7 @@ module game_fsm(
                 if (start_button) begin
                     next_state   <= 2'b00;
                     stick_states <= 24'h0;
+                    score <= 0;
                 end else begin
                     next_state <= 2'b11;
                 end
@@ -204,20 +231,54 @@ module game_fsm(
     end
 
     // Update BCD display:
-    // - In Wait state, show difficulty level
+    // - In Wait state, show difficulty level and 0 score
     // - In Countdown state, show 3-2-1 based on countdown_val
-    always @(*) begin
-        if (game_state == 2'b01) begin
-            // Countdown visible during countdown state
-            case (countdown_val)
-                2'd3: seg <= 7'b0110000; // Display 3
-                2'd2: seg <= 7'b0100100; // Display 2
-                2'd1: seg <= 7'b1111001; // Display 1
+
+
+    always @(posedge clk) begin
+        if (digit_to_display == 2'b00) begin
+                // the following code is only for the rightmost digit
+            if (game_state == 2'b01) begin
+                // Countdown visible during countdown state
+                case (countdown_val)
+                    2'd3: seg <= 7'b0110000; // Display 3
+                    2'd2: seg <= 7'b0100100; // Display 2
+                    2'd1: seg <= 7'b1111001; // Display 1
+                    default: seg <= 7'b1111111; // Blank display
+                endcase
+            end else begin
+                // Otherwise, show difficulty level (including in Wait and during game)
+                case (difficulty_level)
+                    4'd0: seg <= 7'b1000000; // Display 0
+                    4'd1: seg <= 7'b1111001; // Display 1
+                    4'd2: seg <= 7'b0100100; // Display 2
+                    4'd3: seg <= 7'b0110000; // Display 3
+                    4'd4: seg <= 7'b0011001; // Display 4
+                    4'd5: seg <= 7'b0010010; // Display 5
+                    4'd6: seg <= 7'b0000010; // Display 6
+                    4'd7: seg <= 7'b1111000; // Display 7
+                    4'd8: seg <= 7'b0000000; // Display 8
+                    4'd9: seg <= 7'b0010000; // Display 9
+                    default: seg <= 7'b1111111; // Blank display
+                endcase
+            end
+        end else if (digit_to_display == 2'b10) begin
+            case(score_ones_digit)
+                4'd0: seg <= 7'b1000000; // Display 0
+                4'd1: seg <= 7'b1111001; // Display 1
+                4'd2: seg <= 7'b0100100; // Display 2
+                4'd3: seg <= 7'b0110000; // Display 3
+                4'd4: seg <= 7'b0011001; // Display 4
+                4'd5: seg <= 7'b0010010; // Display 5
+                4'd6: seg <= 7'b0000010; // Display 6
+                4'd7: seg <= 7'b1111000; // Display 7
+                4'd8: seg <= 7'b0000000; // Display 8
+                4'd9: seg <= 7'b0010000; // Display 9
                 default: seg <= 7'b1111111; // Blank display
             endcase
+
         end else begin
-            // Otherwise, show difficulty level (including in Wait and during game)
-            case (difficulty_level)
+            case(score_tens_digit)
                 4'd0: seg <= 7'b1000000; // Display 0
                 4'd1: seg <= 7'b1111001; // Display 1
                 4'd2: seg <= 7'b0100100; // Display 2
@@ -231,10 +292,6 @@ module game_fsm(
                 default: seg <= 7'b1111111; // Blank display
             endcase
         end
-    end
-
-    always @(posedge clk) begin
-        an <= 4'b1110;  // rightmost digit only for simplicity
     end
     
 endmodule

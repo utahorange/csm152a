@@ -18,17 +18,19 @@ module game_fsm(
 );
 
     // --- Timers: 40 MHz -> 1 sec = 40_000_000 cycles; 1 ms = 40_000 cycles ---
-    localparam [31:0] ONE_SEC = 32'd40_000_000;
-    localparam [31:0] ONE_MS  = 32'd40_000;
-    localparam [31:0] RESULT_WAIT = 32'd80_000_000;  // 2 sec between sticks
+    localparam [31:0] ONE_SEC     = 32'd40_000_000;
+    localparam [31:0] ONE_MS      = 32'd40_000;
+    // Minimum time to show result before next stick; actual gap is randomized above this.
+    localparam [31:0] RESULT_WAIT = 32'd40_000_000;  // ~1 sec minimum between sticks
 
     reg [1:0] next_state;
     reg [31:0] timer;
     reg [1:0] countdown_val;   // 3, 2, 1
     reg caught;                // 0->1 on correct switch during window
-    reg [15:0] lfsr;           // for random stick choice
+    reg [15:0] lfsr;           // for random stick choice and random gaps
     reg [19:0] difficulty_cooldown;  // ignore extra pulses after one difficulty change (~10 ms at 40 MHz)
-    reg [23:0] next_stick_states;     // for applying early-red and phase updates in Dropping
+    reg [23:0] next_stick_states;    // for applying early-red and phase updates in Dropping
+    reg [31:0] result_wait_target;   // randomized wait time between sticks
 
     localparam [19:0] DIFF_COOLDOWN_CYCLES = 20'd400_000;
 
@@ -71,6 +73,7 @@ module game_fsm(
         score = 4'd0;
         lfsr = 16'habcd;
         difficulty_cooldown = 20'd0;
+        result_wait_target = RESULT_WAIT;
     end
 
     always @(posedge clk) begin
@@ -171,20 +174,14 @@ module game_fsm(
                         next_stick_states[current_stick*3 +: 3] = 3'b010;
                         score <= score + difficulty_level; // increase score by difficulty level for each catch
                         timer <= 0;
-                    end else begin
-                        // Update the stick that actually reached bottom (per-stick bottom flags)
-                        if (next_stick_states[ 2: 0] == 3'b001 && stick_reached_bottom[0]) begin next_stick_states[ 2: 0] = 3'b011; if (current_stick == 3'd0) timer <= 0; end
-                        if (next_stick_states[ 5: 3] == 3'b001 && stick_reached_bottom[1]) begin next_stick_states[ 5: 3] = 3'b011; if (current_stick == 3'd1) timer <= 0; end
-                        if (next_stick_states[ 8: 6] == 3'b001 && stick_reached_bottom[2]) begin next_stick_states[ 8: 6] = 3'b011; if (current_stick == 3'd2) timer <= 0; end
-                        if (next_stick_states[11: 9] == 3'b001 && stick_reached_bottom[3]) begin next_stick_states[11: 9] = 3'b011; if (current_stick == 3'd3) timer <= 0; end
-                        if (next_stick_states[14:12] == 3'b001 && stick_reached_bottom[4]) begin next_stick_states[14:12] = 3'b011; if (current_stick == 3'd4) timer <= 0; end
-                        if (next_stick_states[17:15] == 3'b001 && stick_reached_bottom[5]) begin next_stick_states[17:15] = 3'b011; if (current_stick == 3'd5) timer <= 0; end
-                        if (next_stick_states[20:18] == 3'b001 && stick_reached_bottom[6]) begin next_stick_states[20:18] = 3'b011; if (current_stick == 3'd6) timer <= 0; end
-                        if (next_stick_states[23:21] == 3'b001 && stick_reached_bottom[7]) begin next_stick_states[23:21] = 3'b011; if (current_stick == 3'd7) timer <= 0; end
+                    end else if (stick_reached_bottom[current_stick]) begin
+                        next_stick_states[current_stick*3 +: 3] = 3'b011;
+                        timer <= 0;
+                        result_wait_target <= RESULT_WAIT + {lfsr, 10'd0};
                     end
                 end                 else begin
                     // Phase C: show result, wait RESULT_WAIT then next stick or game over
-                    if (timer >= RESULT_WAIT) begin
+                    if (timer >= result_wait_target) begin
                         timer <= 0;
                         caught <= 1'b0;  // reset when switching sticks so stale "toggled" state doesn't affect next stick
                         if (all_done)

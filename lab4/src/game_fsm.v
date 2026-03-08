@@ -22,10 +22,6 @@ module game_fsm(
     localparam [31:0] ONE_MS  = 32'd40_000;
     localparam [31:0] RESULT_WAIT = 32'd80_000_000;  // 2 sec between sticks
 
-    // Catch window: inversely proportional to difficulty. 1-9: 2000 - level*100 ms (min 1100 at level 9)
-    wire [31:0] catch_time_ms = 32'd2000 - {28'd0, difficulty_level} * 32'd100;
-    wire [31:0] catch_ticks = catch_time_ms * ONE_MS;
-
     reg [1:0] next_state;
     reg [31:0] timer;
     reg [1:0] countdown_val;   // 3, 2, 1

@@ -123,8 +123,7 @@ module vga_display(
 
     localparam [9:0] STICK_Y_VALUE = 80;
     localparam [9:0] MAX_STICK_Y = 330;   // 480 - STICK_HEIGHT, keep on screen
-    localparam [31:0] FALL_DIVIDER = 32'd160_000; // at 40 MHz: larger = slower fall (~4 ms/pixel for longer fall)
-
+    
     reg [79:0] sticks_y = {
         STICK_Y_VALUE, STICK_Y_VALUE, STICK_Y_VALUE, STICK_Y_VALUE,
         STICK_Y_VALUE, STICK_Y_VALUE, STICK_Y_VALUE, STICK_Y_VALUE
@@ -242,6 +241,8 @@ module vga_display(
         .an(an),
         .score(score)
     );
+
+    wire [31:0] FALL_DIVIDER = (32'd640_000) - ( {28'd0, difficulty_level} * 32'd60_000 ); // 
 
     // Fall tick: advance every FALL_DIVIDER cycles, but only during Dropping state (game_state == 2'b10)
     wire in_dropping_state = (game_state == 2'b10);

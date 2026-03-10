@@ -211,16 +211,17 @@ module vga_display(
     input_proc btnCenter_input(.clk(pclk), .reset(1'b0), .button_in(btnCenter), 
         .button_level(btnCenter_level), .button_pulse(btnCenter_pulse), .button_toggle(btnCenter_toggle));
 
-    // Current stick's Y position (for FSM to know when stick has stopped falling)
-    wire [9:0] current_stick_y = (current_stick == 3'd0) ? sticks_y[ 9: 0] :
-                                 (current_stick == 3'd1) ? sticks_y[19:10] :
-                                 (current_stick == 3'd2) ? sticks_y[29:20] :
-                                 (current_stick == 3'd3) ? sticks_y[39:30] :
-                                 (current_stick == 3'd4) ? sticks_y[49:40] :
-                                 (current_stick == 3'd5) ? sticks_y[59:50] :
-                                 (current_stick == 3'd6) ? sticks_y[69:60] :
-                                 sticks_y[79:70];
-    wire stick_reached_bottom = (current_stick_y >= MAX_STICK_Y);
+    // Per-stick: has this stick's Y reached the bottom? (for FSM to update the right stick when it falls)
+    wire [7:0] stick_reached_bottom = {
+        sticks_y[79:70] >= MAX_STICK_Y,
+        sticks_y[69:60] >= MAX_STICK_Y,
+        sticks_y[59:50] >= MAX_STICK_Y,
+        sticks_y[49:40] >= MAX_STICK_Y,
+        sticks_y[39:30] >= MAX_STICK_Y,
+        sticks_y[29:20] >= MAX_STICK_Y,
+        sticks_y[19:10] >= MAX_STICK_Y,
+        sticks_y[ 9: 0] >= MAX_STICK_Y
+    };
 
     wire [6:0] score; // 7-bit number because it's a maximum of 8 * 9, inclusive
         // multiply the score by the difficulty level to get the actual score

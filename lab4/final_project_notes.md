@@ -9,5 +9,10 @@ what do we need to do now:
 - [x] game starts after countdown
 - [x] show start message
 - [x] final score on bcd display
-- [ ] difficulty level doesn't seem to actually make stuff faster
+- [X] difficulty level doesn't seem to actually make stuff faster
 - [ ] make the time btwn sticks being dropped also random
+
+bugs:
+- [ ] some sticks stay yellow at bottom of screen and we just never drop another stick
+- [ ] sometimes sticks immediately turn red at top of screen even though switch was not pulled on
+    - i thought this was fixed in one of my branches

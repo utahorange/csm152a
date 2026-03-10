@@ -14,5 +14,9 @@ what do we need to do now:
 
 bugs:
 - [ ] some sticks stay yellow at bottom of screen and we just never drop another stick
-- [ ] sometimes sticks immediately turn red at top of screen even though switch was not pulled on
-    - i thought this was fixed in one of my branches
+    - this never happens with leftmost stick (always turns red when fallen)
+
+
+- [ ] Sometimes sticks immediately turn red at top of screen even though switch was not pulled on. This happens when another stick was already pulled high when it should not have been
+    - okay so i thought this was fixed, but its actually still present, happens when another stick is toggled up and correctly turns red. Sometimes another white stick also then turns red immediately
+    - this is clearest on level 9 for some reason

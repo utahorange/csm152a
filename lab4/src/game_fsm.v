@@ -175,10 +175,11 @@ module game_fsm(
                         next_stick_states[current_stick*3 +: 3] = 3'b011;
                         timer <= 0;
                     end
-                end else begin
+                end                 else begin
                     // Phase C: show result, wait RESULT_WAIT then next stick or game over
                     if (timer >= RESULT_WAIT) begin
                         timer <= 0;
+                        caught <= 1'b0;  // reset when switching sticks so stale "toggled" state doesn't affect next stick
                         if (all_done)
                             next_state <= 2'b11;
                         else begin

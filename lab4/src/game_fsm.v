@@ -25,7 +25,6 @@ module game_fsm(
     reg [1:0] next_state;
     reg [31:0] timer;
     reg [1:0] countdown_val;   // 3, 2, 1
-    reg [2:0] current_stick;   // which stick is yellow (0..7)
     reg caught;                // 0->1 on correct switch during window
     reg [15:0] lfsr;           // for random stick choice
     reg [19:0] difficulty_cooldown;  // ignore extra pulses after one difficulty change (~10 ms at 40 MHz)
